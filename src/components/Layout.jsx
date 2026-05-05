@@ -1,50 +1,43 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, LogOut, Building2 } from 'lucide-react';
+import { useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import Sidebar from './Sidebar';
+
+const PAGE_TITLES = {
+  '/dashboard':    'Dashboard',
+  '/obras':        'Obras',
+  '/cotizaciones': 'Cotizaciones',
+  '/subcontratos': 'Subcontratos',
+  '/cronograma':   'Cronograma',
+  '/estados-pago': 'Estados de Pago',
+  '/flujo-caja':   'Flujo de Caja',
+  '/alertas':      'Alertas',
+};
 
 export default function Layout() {
-  const { signOut, user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
+  // Para rutas de detalle como /obra/:id
+  const title = PAGE_TITLES[location.pathname] || 'Constructora S4';
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-64 bg-s4blue text-white flex flex-col">
-        <div className="p-6 flex items-center gap-3 border-b border-blue-800">
-          <Building2 size={28} />
-          <h1 className="text-xl font-bold">Constructora S4</h1>
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          <Link
-            to="/dashboard"
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/obra')
-                ? 'bg-blue-800 text-white'
-                : 'text-blue-100 hover:bg-blue-800'
-            }`}
-          >
-            <LayoutDashboard size={20} />
-            Dashboard
-          </Link>
-        </nav>
+    <div className="app-layout">
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <div className="p-4 border-t border-blue-800">
-          <div className="mb-4 px-4 text-sm text-blue-200 truncate">
-            {user?.email}
-          </div>
+      <div className="app-main">
+        {/* Header móvil con hamburguesa */}
+        <header className="mob-header">
           <button
-            onClick={signOut}
-            className="flex items-center gap-3 px-4 py-2 w-full text-left text-blue-100 hover:bg-blue-800 rounded-lg transition-colors"
+            className="hamburger"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Abrir menú"
           >
-            <LogOut size={20} />
-            Cerrar Sesión
+            ☰
           </button>
-        </div>
-      </div>
+          <span className="mob-title">{title}</span>
+        </header>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
+        {/* Contenido de la página actual */}
         <Outlet />
       </div>
     </div>

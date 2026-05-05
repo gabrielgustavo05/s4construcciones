@@ -1,108 +1,72 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { Building2, Lock } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setError(null);
+    setError('');
     setLoading(true);
-    
     try {
-      const result = await signIn({ email, password });
-      if (result.error) {
-        setError('Credenciales incorrectas. Contacte al administrador.');
-      } else {
-        navigate('/dashboard');
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate('/dashboard');
     } catch (err) {
-      setError(err.message);
+      setError('Usuario o contraseña incorrectos');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="p-4 bg-s4blue rounded-2xl shadow-lg">
-            <Building2 size={48} strokeWidth={1.5} className="text-white" />
-          </div>
+    <div className="login-wrap">
+      <div className="login-box">
+        <div className="login-logo">
+          <div className="login-icon">🏗️</div>
+          <h1>Constructora S4</h1>
+          <p>Sistema integral de gestión de obras · v2.0</p>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-          Constructora S4
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-400">
-          Sistema de Gestión de Obras Comerciales
-        </p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-gray-800 py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-700">
-          
-          <div className="flex items-center gap-2 mb-6 text-gray-400 text-xs uppercase tracking-widest justify-center">
-            <Lock size={12} />
-            <span>Acceso Restringido</span>
+        <form onSubmit={handleLogin}>
+          <div className="form-group">
+            <label>CORREO ELECTRÓNICO</label>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="admin@s4chile.cl"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>CONTRASEÑA</label>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-900/40 border border-red-500/50 text-red-300 text-sm p-3 rounded-lg">
-                {error}
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="correo@empresa.com"
-                className="appearance-none block w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-s4blue focus:border-transparent sm:text-sm"
-              />
-            </div>
+          {error && <p className="login-error">{error}</p>}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="appearance-none block w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-s4blue focus:border-transparent sm:text-sm"
-              />
-            </div>
+          <button type="submit" className="btn-login" disabled={loading}>
+            {loading ? 'Ingresando...' : 'Ingresar al sistema →'}
+          </button>
+        </form>
 
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-s4blue hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-s4blue disabled:opacity-50 transition-colors"
-              >
-                {loading ? 'Verificando...' : 'Ingresar al Sistema'}
-              </button>
-            </div>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-gray-600">
-            Solo usuarios autorizados por S4 pueden acceder.
+        <div style={{ marginTop: 18, padding: '10px 14px', background: 'var(--bg3)', borderRadius: 'var(--r2)', border: '1px solid var(--border)' }}>
+          <p style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.8 }}>
+            🔒 Acceso restringido — Solo personal autorizado de Constructora S4
           </p>
         </div>
       </div>

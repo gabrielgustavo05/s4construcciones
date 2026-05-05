@@ -1,255 +1,291 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
-import { Plus, Building2, TrendingUp, TrendingDown, Trash2, X } from 'lucide-react';
+import { clp, calcPresupuesto, calcCompras, semaforoColor, pct } from '../lib/helpers';
+import { Chart, registerables } from 'chart.js';
+import Badge from '../components/Badge';
+
+Chart.register(...registerables);
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const [obras, setObras] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [newObraName, setNewObraName] = useState('');
-  const [newObraEstado, setNewObraEstado] = useState('En Progreso');
+  const navigate = useNavigate();
+  const chartPresRef = useRef(null);
+  const chartAvRef  = useRef(null);
+  const chartPresInst = useRef(null);
+  const chartAvInst   = useRef(null);
 
   const fetchObras = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('obras')
         .select(`
-          id,
-          nombre,
-          estado,
+          id, nombre, tipo, estado, avance,
+          gastos_generales_pct, utilidad_pct,
           presupuesto_items ( cantidad, precio_unitario ),
-          compras ( cantidad, precio_unitario )
+          compras ( cantidad, precio_unitario ),
+          cotizaciones ( monto, estado ),
+          subcontratos ( monto_contrato ),
+          estados_pago ( monto_bruto, retencion_pct, estado )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const obrasCalculated = data.map(obra => {
-        const subtotalPresupuesto = obra.presupuesto_items.reduce(
-          (acc, item) => acc + Number(item.cantidad) * Number(item.precio_unitario), 0
+      const obrasData = data.map((o) => {
+        const { total: totalPres } = calcPresupuesto(
+          o.presupuesto_items || [],
+          o.gastos_generales_pct,
+          o.utilidad_pct
         );
-        const gastos = subtotalPresupuesto * 0.15;
-        const utilidad = subtotalPresupuesto * 0.10;
-        const neto = subtotalPresupuesto + gastos + utilidad;
-        const totalPresupuesto = neto * 1.19;
-
-        const totalCompras = obra.compras.reduce(
-          (acc, item) => acc + Number(item.cantidad) * Number(item.precio_unitario), 0
-        );
-        const diferencia = totalPresupuesto - totalCompras;
-
-        return { ...obra, totalPresupuesto, totalCompras, diferencia };
+        const totalCompras = calcCompras(o.compras || []);
+        const diferencia   = totalPres - totalCompras;
+        return { ...o, totalPres, totalCompras, diferencia };
       });
 
-      setObras(obrasCalculated);
-    } catch (error) {
-      console.error('Error fetching obras:', error);
+      setObras(obrasData);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Carga inicial
+  useEffect(() => { fetchObras(); }, [fetchObras]);
+
+  // Supabase Realtime — escucha cambios en todas las tablas relevantes
   useEffect(() => {
-    fetchObras();
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'obras' },           fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'presupuesto_items' }, fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' },         fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cotizaciones' },    fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subcontratos' },    fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_pago' },    fetchObras)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchObras]);
 
-  const createObra = async (e) => {
-    e.preventDefault();
-    if (!newObraName.trim()) return;
+  // Renderizar gráficos
+  useEffect(() => {
+    if (!obras.length || loading) return;
 
-    try {
-      const { error } = await supabase
-        .from('obras')
-        .insert([{ nombre: newObraName, estado: newObraEstado, user_id: user.id }]);
-
-      if (error) throw error;
-
-      setNewObraName('');
-      setNewObraEstado('En Progreso');
-      setShowModal(false);
-      fetchObras();
-    } catch (error) {
-      console.error('Error creating obra:', error);
-      alert('Error al crear la obra: ' + error.message);
-    }
-  };
-
-  const deleteObra = async (e, id) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!window.confirm('¿Seguro que deseas eliminar esta obra y todos sus datos?')) return;
-
-    try {
-      const { error } = await supabase.from('obras').delete().eq('id', id);
-      if (error) throw error;
-      fetchObras();
-    } catch (error) {
-      console.error('Error deleting obra:', error);
-      alert('Error al eliminar la obra');
-    }
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setNewObraName('');
-    setNewObraEstado('En Progreso');
-  };
-
-  const formatCurrency = (val) =>
-    new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(val);
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-full">
-        <div className="text-center text-gray-400">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700 mx-auto mb-4"></div>
-          Cargando obras...
-        </div>
-      </div>
+    const labels = obras.map((o) =>
+      o.nombre.length > 16 ? o.nombre.slice(0, 16) + '…' : o.nombre
     );
-  }
+    const chartOpts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#71717a', font: { size: 10 }, boxWidth: 10 } },
+      },
+      scales: {
+        x: { ticks: { color: '#52525b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: { ticks: { color: '#52525b', font: { size: 9 }, callback: (v) => clp(v) }, grid: { color: 'rgba(255,255,255,0.03)' } },
+      },
+    };
+
+    if (chartPresInst.current) chartPresInst.current.destroy();
+    if (chartPresRef.current) {
+      chartPresInst.current = new Chart(chartPresRef.current.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Presupuesto', data: obras.map((o) => o.totalPres), backgroundColor: 'rgba(59,130,246,0.6)', borderColor: '#3b82f6', borderWidth: 1 },
+            { label: 'Gasto real',  data: obras.map((o) => o.totalCompras), backgroundColor: 'rgba(217,119,6,0.6)', borderColor: '#d97706', borderWidth: 1 },
+          ],
+        },
+        options: chartOpts,
+      });
+    }
+
+    const avOpts = { ...chartOpts, indexAxis: 'y' };
+    avOpts.scales = {
+      x: { ticks: { color: '#52525b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.03)' }, max: 100 },
+      y: { ticks: { color: '#52525b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+    };
+    avOpts.plugins = { legend: { display: false } };
+
+    if (chartAvInst.current) chartAvInst.current.destroy();
+    if (chartAvRef.current) {
+      chartAvInst.current = new Chart(chartAvRef.current.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Avance %',
+            data: obras.map((o) => o.avance || 0),
+            backgroundColor: obras.map((o) =>
+              (o.avance || 0) >= 80 ? 'rgba(16,185,129,0.7)' :
+              (o.avance || 0) >= 40 ? 'rgba(217,119,6,0.7)' :
+              'rgba(59,130,246,0.7)'
+            ),
+            borderWidth: 0,
+          }],
+        },
+        options: avOpts,
+      });
+    }
+
+    return () => {
+      if (chartPresInst.current) chartPresInst.current.destroy();
+      if (chartAvInst.current)   chartAvInst.current.destroy();
+    };
+  }, [obras, loading]);
+
+  if (loading) return (
+    <div className="loading-center">
+      <div className="spinner" />
+      Cargando dashboard...
+    </div>
+  );
+
+  const activas     = obras.filter((o) => o.estado === 'Activa' || o.estado === 'En Progreso');
+  const totalPres   = obras.reduce((s, o) => s + o.totalPres, 0);
+  const totalGasto  = obras.reduce((s, o) => s + o.totalCompras, 0);
+  const avPromedio  = activas.length ? Math.round(activas.reduce((s, o) => s + (o.avance || 0), 0) / activas.length) : 0;
+  const totalSubs   = obras.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
+  const cotPend     = obras.reduce((s, o) => s + (o.cotizaciones || []).filter((c) => c.estado === 'Pendiente').length, 0);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+    <div>
+      <div className="ph">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mis Obras</h1>
-          <p className="text-gray-400 text-sm mt-1">Gestión general de proyectos activos</p>
+          <h2>Dashboard ejecutivo</h2>
+          <p>{new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-[#1E3A8A] hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg shadow transition-colors text-sm font-medium"
-        >
-          <Plus size={18} />
-          Nueva Obra
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 700 }}>● EN VIVO</span>
+        </div>
       </div>
 
-      {/* Grid de obras */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {obras.map((obra) => (
-          <Link
-            key={obra.id}
-            to={`/obra/${obra.id}`}
-            className="group block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-200 transition-all overflow-hidden"
-          >
-            {/* Card Header */}
-            <div className="bg-gradient-to-r from-[#1E3A8A] to-blue-700 px-5 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-lg">
-                  <Building2 size={20} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-white leading-tight truncate max-w-36" title={obra.nombre}>
-                    {obra.nombre}
-                  </h3>
-                  <span className="text-blue-200 text-xs">{obra.estado}</span>
-                </div>
-              </div>
-              <button
-                onClick={(e) => deleteObra(e, obra.id)}
-                className="p-1.5 text-blue-200 hover:text-red-300 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-
-            {/* Card Body */}
-            <div className="p-5 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Presupuesto:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(obra.totalPresupuesto)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Gastado:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(obra.totalCompras)}</span>
-              </div>
-
-              <div className={`flex items-center justify-between rounded-lg px-3 py-2 mt-2 ${
-                obra.diferencia >= 0 ? 'bg-green-50' : 'bg-red-50'
-              }`}>
-                <span className="text-xs font-medium text-gray-500">Resultado</span>
-                <div className={`flex items-center gap-1 font-bold text-sm ${
-                  obra.diferencia >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {obra.diferencia >= 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
-                  {formatCurrency(obra.diferencia)}
-                </div>
-              </div>
-            </div>
-          </Link>
-        ))}
-
-        {obras.length === 0 && (
-          <div className="col-span-full py-16 text-center border-2 border-dashed border-gray-200 rounded-xl">
-            <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-600">No hay obras registradas</h3>
-            <p className="text-gray-400 text-sm mt-1">Crea tu primer proyecto haciendo clic en "Nueva Obra".</p>
+      <div className="pb">
+        {/* Stats */}
+        <div className="stats-grid">
+          <div className="stat-card amber">
+            <span className="stat-label">Obras activas</span>
+            <span className="stat-value">{activas.length}<span style={{ fontSize: 13, color: 'var(--text2)' }}> / {obras.length}</span></span>
+            <div className="stat-sub">Total portafolio</div>
           </div>
-        )}
-      </div>
-
-      {/* Modal Nueva Obra */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-bold text-gray-900">Crear Nueva Obra</h2>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={createObra} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre de la obra <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  value={newObraName}
-                  onChange={(e) => setNewObraName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="Ej: Remodelación Local Centro"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <select
-                  value={newObraEstado}
-                  onChange={(e) => setNewObraEstado(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm bg-white"
-                >
-                  <option>En Progreso</option>
-                  <option>Planificación</option>
-                  <option>Pausada</option>
-                  <option>Finalizada</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 transition-colors font-medium"
-                >
-                  Crear Obra
-                </button>
-              </div>
-            </form>
+          <div className="stat-card blue">
+            <span className="stat-label">Presupuesto total</span>
+            <span className="stat-value" style={{ fontSize: 15 }}>{clp(totalPres)}</span>
+            <div className="stat-sub">Suma de obras</div>
+          </div>
+          <div className="stat-card green">
+            <span className="stat-label">Gasto comprometido</span>
+            <span className="stat-value" style={{ fontSize: 15 }}>{clp(totalGasto)}</span>
+            <div className="stat-sub">{pct(totalGasto, totalPres)}% ejecutado</div>
+          </div>
+          <div className={`stat-card ${totalPres - totalGasto < 0 ? 'red' : 'green'}`}>
+            <span className="stat-label">Resultado</span>
+            <span className="stat-value" style={{ fontSize: 15, color: totalPres - totalGasto >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              {clp(totalPres - totalGasto)}
+            </span>
+            <div className="stat-sub">Presupuesto restante</div>
+          </div>
+          <div className={`stat-card ${cotPend > 0 ? 'red' : 'green'}`}>
+            <span className="stat-label">Cots. pendientes</span>
+            <span className="stat-value">{cotPend}</span>
+            <div className="stat-sub">Por aprobar</div>
+          </div>
+          <div className="stat-card purple">
+            <span className="stat-label">Avance promedio</span>
+            <span className="stat-value">{avPromedio}%</span>
+            <div className="stat-sub">Obras activas</div>
+          </div>
+          <div className="stat-card teal">
+            <span className="stat-label">Total subcontratos</span>
+            <span className="stat-value" style={{ fontSize: 15 }}>{clp(totalSubs)}</span>
+            <div className="stat-sub">{obras.reduce((s, o) => s + (o.subcontratos || []).length, 0)} contratos</div>
+          </div>
+          <div className="stat-card amber">
+            <span className="stat-label">Total obras</span>
+            <span className="stat-value">{obras.length}</span>
+            <div className="stat-sub">En el sistema</div>
           </div>
         </div>
-      )}
+
+        {/* Gráficos */}
+        <div className="g2">
+          <div className="card">
+            <div className="card-title">📊 Presupuesto vs Gasto real</div>
+            <div className="chart-wrap"><canvas ref={chartPresRef} /></div>
+          </div>
+          <div className="card">
+            <div className="card-title">📈 Avance por obra (%)</div>
+            <div className="chart-wrap"><canvas ref={chartAvRef} /></div>
+          </div>
+        </div>
+
+        {/* Tabla de obras */}
+        <div className="card" style={{ padding: 0 }}>
+          <div className="card-title" style={{ padding: '14px 16px 0' }}>🏢 Estado de obras</div>
+          <div className="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Obra</th>
+                  <th>Estado</th>
+                  <th>Avance</th>
+                  <th>Presupuesto</th>
+                  <th>Gasto real</th>
+                  <th>Resultado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {obras.length === 0 ? (
+                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay obras registradas</td></tr>
+                ) : obras.map((o) => {
+                  const color = semaforoColor(o.totalPres, o.totalCompras);
+                  const dif = o.totalPres - o.totalCompras;
+                  return (
+                    <tr key={o.id}>
+                      <td><div className="semaforo" style={{ background: color }} /></td>
+                      <td>
+                        <span
+                          style={{ fontWeight: 700, color: 'var(--accent)', cursor: 'pointer' }}
+                          onClick={() => navigate(`/obra/${o.id}`)}
+                        >
+                          {o.nombre}
+                        </span>
+                        <div className="ts tx">{o.tipo}</div>
+                      </td>
+                      <td><Badge estado={o.estado} /></td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          <div className="pb2" style={{ width: 60 }}>
+                            <div className="pf" style={{
+                              width: `${o.avance || 0}%`,
+                              background: (o.avance || 0) >= 80 ? 'var(--green)' : (o.avance || 0) >= 40 ? 'var(--accent)' : 'var(--blue)',
+                            }} />
+                          </div>
+                          <span className="ts">{o.avance || 0}%</span>
+                        </div>
+                      </td>
+                      <td className="mono">{clp(o.totalPres)}</td>
+                      <td className="mono">{clp(o.totalCompras)}</td>
+                      <td className={`mono ${dif >= 0 ? 'tg' : 'tr2'}`}>{clp(dif)}</td>
+                      <td>
+                        <button className="btn btn-s btn-sm" onClick={() => navigate(`/obra/${o.id}`)}>
+                          Ver →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
