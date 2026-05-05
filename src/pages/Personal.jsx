@@ -8,7 +8,7 @@ const EMPTY = {
   nombre: '',
   rut: '',
   cargo: 'Maestro',
-  sueldo_base_diario: ''
+  sueldo_base_mensual: ''
 };
 
 const CARGOS = ['Maestro', 'Jornal', 'Capataz', 'Supervisor', 'Conductor', 'Operador', 'Administrativo', 'Otro'];
@@ -41,7 +41,7 @@ export default function Personal() {
     const payload = {
       ...form,
       user_id: user.id,
-      sueldo_base_diario: Number(form.sueldo_base_diario)
+      sueldo_base_mensual: Number(form.sueldo_base_mensual)
     };
     
     // Si tiene ID, es un update. Si no, es un insert.
@@ -103,7 +103,7 @@ export default function Personal() {
                   <th>Nombre completo</th>
                   <th>RUT</th>
                   <th>Cargo</th>
-                  <th>Sueldo Diario Base</th>
+                  <th>Sueldo Mensual Base</th>
                   <th></th>
                 </tr>
               </thead>
@@ -119,7 +119,7 @@ export default function Personal() {
                     <td><strong>{t.nombre}</strong></td>
                     <td className="ts">{t.rut || '-'}</td>
                     <td>{t.cargo}</td>
-                    <td className="mono tg">{clp(t.sueldo_base_diario)}</td>
+                    <td className="mono tg">{clp(t.sueldo_base_mensual)}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                         <button className="btn btn-s btn-sm" onClick={() => { setForm(t); setShowModal(true); }}>✏️ Editar</button>
@@ -154,11 +154,11 @@ export default function Personal() {
               </div>
             </div>
             <div className="form-group">
-              <label>SUELDO BASE DIARIO ($) *</label>
-              <input type="number" required value={form.sueldo_base_diario} onChange={e => setForm({...form, sueldo_base_diario: e.target.value})} placeholder="Ej: 35000" />
+              <label>SUELDO BASE MENSUAL ($) *</label>
+              <input type="number" required value={form.sueldo_base_mensual} onChange={e => setForm({...form, sueldo_base_mensual: e.target.value})} placeholder="Ej: 850000" />
             </div>
             <p className="ts tx" style={{ marginTop: -10, marginBottom: 14 }}>
-              Este valor se multiplicará por los días trabajados al registrar asistencia en cada obra.
+              Este valor se dividirá por 30 para calcular días trabajados, y se usará la base legal chilena para horas extras.
             </p>
             <div className="modal-actions">
               <button type="button" className="btn btn-s" onClick={() => { setShowModal(false); setForm(EMPTY); }}>Cancelar</button>

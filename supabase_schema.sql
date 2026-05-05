@@ -190,9 +190,20 @@ CREATE TABLE IF NOT EXISTS trabajadores (
     rut TEXT,
     nombre TEXT NOT NULL,
     cargo TEXT,
-    sueldo_base_diario NUMERIC DEFAULT 0,
+    sueldo_base_mensual NUMERIC DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- Si la tabla ya existía con el nombre viejo, la renombramos
+DO $$
+BEGIN
+  IF EXISTS(SELECT *
+    FROM information_schema.columns
+    WHERE table_name='trabajadores' and column_name='sueldo_base_diario')
+  THEN
+      ALTER TABLE "public"."trabajadores" RENAME COLUMN "sueldo_base_diario" TO "sueldo_base_mensual";
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS asistencia (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

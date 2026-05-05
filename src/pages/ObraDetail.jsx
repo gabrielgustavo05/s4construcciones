@@ -110,11 +110,17 @@ export default function ObraDetail() {
     const bono = Number(newAsistencia.bono_trato);
     const horas = Number(newAsistencia.horas_extra);
     const desc = Number(newAsistencia.descuentos);
-    const sueldoBase = Number(tr.sueldo_base_diario);
+    const sueldoMensual = Number(tr.sueldo_base_mensual);
     
-    const valorHora = sueldoBase / 8;
-    const pagoHorasExtra = horas * valorHora * 1.5;
-    const total_pago = (sueldoBase * dias) + bono + pagoHorasExtra - desc;
+    // Fórmula Legal Chilena (Mensual, 42 horas semanales)
+    // 1. Valor por día trabajado (Mes comercial = 30 días)
+    const valorDia = sueldoMensual / 30;
+    
+    // 2. Factor Hora Extra para 42 hrs = (1/30) * 7 / 42 * 1.5 = 0.0083333333333
+    const factorHoraExtra = (1 / 30) * (7 / 42) * 1.5;
+    const pagoHorasExtra = horas * (sueldoMensual * factorHoraExtra);
+    
+    const total_pago = (valorDia * dias) + bono + pagoHorasExtra - desc;
     
     const payload = {
       ...newAsistencia,
