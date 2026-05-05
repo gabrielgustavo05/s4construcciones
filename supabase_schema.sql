@@ -9,6 +9,7 @@
 -- ============================================================
 ALTER TABLE obras ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'Edificio residencial';
 ALTER TABLE obras ADD COLUMN IF NOT EXISTS departamento TEXT DEFAULT 'Construcción';
+ALTER TABLE obras ADD COLUMN IF NOT EXISTS obra_padre_id UUID REFERENCES obras(id) ON DELETE SET NULL;
 ALTER TABLE obras ADD COLUMN IF NOT EXISTS direccion TEXT;
 ALTER TABLE obras ADD COLUMN IF NOT EXISTS cliente TEXT;
 ALTER TABLE obras ADD COLUMN IF NOT EXISTS ito TEXT;

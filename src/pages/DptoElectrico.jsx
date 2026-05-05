@@ -6,14 +6,17 @@ import { clp, calcPresupuesto, calcCompras, semaforoColor } from '../lib/helpers
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
-const TIPOS = ['Edificio residencial', 'Edificio oficinas', 'Casa', 'Industria', 'Infraestructura', 'Remodelación'];
-const ESTADOS = ['En Progreso', 'Licitación', 'Activa', 'Pausada', 'Finalizada'];
+const TIPOS = ['Diseño de proyecto', 'Ejecución Eléctrica'];
+const ESTADOS_POR_TIPO = {
+  'Diseño de proyecto': ['En Estudio', 'Esperando OC', 'En Ejecución', 'En Revisión', 'Esperando Pago', 'Finalizado'],
+  'Ejecución Eléctrica': ['Licitación', 'En Ejecución', 'Finalizada', 'Pausada'],
+};
 
 const EMPTY = {
-  nombre: '', tipo: 'Edificio residencial', direccion: '', cliente: '',
+  nombre: '', tipo: 'Diseño de proyecto', direccion: '', cliente: '',
   ito: '', superficie: '', responsable: '',
-  estado: 'En Progreso', n_contrato: '', fecha_inicio: '', fecha_fin: '',
-  descripcion: '',
+  estado: 'En Estudio', n_contrato: '', fecha_inicio: '', fecha_fin: '',
+  descripcion: '', obra_padre_id: '',
 };
 
 export default function DptoElectrico() {
@@ -25,26 +28,31 @@ export default function DptoElectrico() {
   const [form, setForm] = useState(EMPTY);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroTipo,   setFiltroTipo]   = useState('');
+  const [obrasMadre, setObrasMadre] = useState([]);
 
   const fetchObras = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('obras')
-      .select(`
-        id, nombre, tipo, direccion, estado, avance, responsable, n_contrato,
-        gastos_generales_pct, utilidad_pct, fecha_fin,
-        presupuesto_items ( cantidad, precio_unitario ),
-        compras ( cantidad, precio_unitario )
-      `)
-      .eq('departamento', 'Eléctrico')
-      .order('created_at', { ascending: false });
+    const [{ data }, { data: obrasConstruccion }] = await Promise.all([
+      supabase
+        .from('obras')
+        .select(`
+          id, nombre, tipo, direccion, estado, avance, responsable, n_contrato,
+          gastos_generales_pct, utilidad_pct, fecha_fin,
+          presupuesto_items ( cantidad, precio_unitario ),
+          compras ( cantidad, precio_unitario )
+        `)
+        .eq('departamento', 'Eléctrico')
+        .order('created_at', { ascending: false }),
+      supabase.from('obras').select('id, nombre').eq('departamento', 'Construcción')
+    ]);
 
-    if (!error) {
+    if (data) {
       setObras(data.map((o) => ({
         ...o,
         totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).total,
         totalCompras: calcCompras(o.compras || []),
       })));
     }
+    if (obrasConstruccion) setObrasMadre(obrasConstruccion);
     setLoading(false);
   }, []);
 
@@ -64,6 +72,7 @@ export default function DptoElectrico() {
       utilidad_pct:         10,
       fecha_inicio:         form.fecha_inicio || null,
       fecha_fin:            form.fecha_fin    || null,
+      obra_padre_id:        form.tipo === 'Ejecución Eléctrica' && form.obra_padre_id ? form.obra_padre_id : null,
     };
     const { error } = await supabase.from('obras').insert([payload]);
     if (!error) { setShowModal(false); setForm(EMPTY); fetchObras(); }
@@ -103,7 +112,7 @@ export default function DptoElectrico() {
             style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '7px 12px', borderRadius: 'var(--r2)', fontSize: 11 }}
           >
             <option value="">Todos los estados</option>
-            {ESTADOS.map((e) => <option key={e}>{e}</option>)}
+            {ESTADOS_POR_TIPO['Diseño de proyecto'].concat(ESTADOS_POR_TIPO['Ejecución Eléctrica']).map((e) => <option key={e}>{e}</option>)}
           </select>
           <select
             value={filtroTipo}
@@ -193,11 +202,20 @@ export default function DptoElectrico() {
               </div>
               <div className="form-group">
                 <label>TIPO</label>
-                <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+                <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value, estado: ESTADOS_POR_TIPO[e.target.value][0] })}>
                   {TIPOS.map((t) => <option key={t}>{t}</option>)}
                 </select>
               </div>
             </div>
+            {form.tipo === 'Ejecución Eléctrica' && (
+              <div className="form-group">
+                <label>OBRA ASOCIADA (Opcional)</label>
+                <select value={form.obra_padre_id} onChange={(e) => setForm({ ...form, obra_padre_id: e.target.value })}>
+                  <option value="">Ninguna - Proyecto independiente</option>
+                  {obrasMadre.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                </select>
+              </div>
+            )}
             <div className="form-group">
               <label>DIRECCIÓN</label>
               <input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} placeholder="Av. Principal 1234, Santiago" />
@@ -228,14 +246,14 @@ export default function DptoElectrico() {
                 <input value={form.responsable} onChange={(e) => setForm({ ...form, responsable: e.target.value })} placeholder="Jefe de obra" />
               </div>
               <div className="form-group">
-                <label>N° CONTRATO</label>
-                <input value={form.n_contrato} onChange={(e) => setForm({ ...form, n_contrato: e.target.value })} placeholder="CT-2025-001" />
+                <label>N° OC / CONTRATO (Opcional)</label>
+                <input value={form.n_contrato} onChange={(e) => setForm({ ...form, n_contrato: e.target.value })} placeholder="Dejar en blanco si aún no hay OC" />
               </div>
             </div>
             <div className="form-group">
               <label>ESTADO</label>
               <select value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })}>
-                {ESTADOS.map((s) => <option key={s}>{s}</option>)}
+                {ESTADOS_POR_TIPO[form.tipo].map((s) => <option key={s}>{s}</option>)}
               </select>
             </div>
             <div className="form-group">

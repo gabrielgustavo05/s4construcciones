@@ -17,8 +17,11 @@ export default function ObraDetail() {
   const [excelPreview, setExcelPreview] = useState(null);
   const [form, setForm] = useState({});
 
+  const [showEditObra, setShowEditObra] = useState(false);
+  const [editForm, setEditForm] = useState({});
+
   const fetchObra = useCallback(async () => {
-    const { data: o } = await supabase.from('obras').select('*').eq('id', id).single();
+    const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
     setObra(o);
   }, [id]);
 
@@ -40,6 +43,13 @@ export default function ObraDetail() {
     if (!confirm('¿Eliminar?')) return;
     await supabase.from(table).delete().eq('id', rowId);
     fetchTab(tab);
+  };
+
+  const handleUpdateObra = async (e) => {
+    e.preventDefault();
+    const { error } = await supabase.from('obras').update(editForm).eq('id', id);
+    if (!error) { setShowEditObra(false); fetchObra(); }
+    else alert('Error: ' + error.message);
   };
 
   // ── Importar Excel ──
@@ -126,10 +136,15 @@ export default function ObraDetail() {
           </div>
           <div className="g2">
             <div className="card">
-              <div className="card-title">📋 Datos</div>
-              {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° Contrato',obra.n_contrato]].map(([k,v]) => (
-                <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v||'-'}</span></div>
-              ))}
+              <div className="fb">
+                <div className="card-title" style={{ margin:0 }}>📋 Datos</div>
+                <button className="btn btn-s btn-sm" onClick={() => { setEditForm(obra); setShowEditObra(true); }}>✏️ Editar</button>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° OC / Contrato',obra.n_contrato], ...(obra.obra_padre ? [['Obra Asociada', obra.obra_padre.nombre]] : [])].map(([k,v]) => (
+                  <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v||'-'}</span></div>
+                ))}
+              </div>
             </div>
             <div className="card">
               <div className="card-title">📝 Descripción</div>
@@ -431,6 +446,55 @@ export default function ObraDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {showEditObra && (
+        <Modal title="✏️ Editar datos del proyecto" onClose={() => setShowEditObra(false)}>
+          <form onSubmit={handleUpdateObra}>
+            <div className="form-group">
+              <label>NOMBRE</label>
+              <input required value={editForm.nombre} onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })} />
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>N° OC / CONTRATO</label>
+                <input value={editForm.n_contrato || ''} onChange={(e) => setEditForm({ ...editForm, n_contrato: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>CLIENTE</label>
+                <input value={editForm.cliente || ''} onChange={(e) => setEditForm({ ...editForm, cliente: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>ITO / INSPECTOR</label>
+                <input value={editForm.ito || ''} onChange={(e) => setEditForm({ ...editForm, ito: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>RESPONSABLE</label>
+                <input value={editForm.responsable || ''} onChange={(e) => setEditForm({ ...editForm, responsable: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>FECHA INICIO</label>
+                <input type="date" value={editForm.fecha_inicio || ''} onChange={(e) => setEditForm({ ...editForm, fecha_inicio: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>FECHA TÉRMINO EST.</label>
+                <input type="date" value={editForm.fecha_fin || ''} onChange={(e) => setEditForm({ ...editForm, fecha_fin: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>DESCRIPCIÓN</label>
+              <textarea value={editForm.descripcion || ''} onChange={(e) => setEditForm({ ...editForm, descripcion: e.target.value })} />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-s" onClick={() => setShowEditObra(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-a">Guardar cambios</button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
