@@ -11,7 +11,7 @@ const ESTADOS = ['En Progreso', 'Licitación', 'Activa', 'Pausada', 'Finalizada'
 
 const EMPTY = {
   nombre: '', tipo: 'Edificio residencial', direccion: '', cliente: '',
-  ito: '', superficie: '', responsable: '', avance: '0',
+  ito: '', superficie: '', responsable: '',
   estado: 'En Progreso', n_contrato: '', fecha_inicio: '', fecha_fin: '',
   gastos_generales_pct: '15', utilidad_pct: '10', descripcion: '',
 };
@@ -56,8 +56,8 @@ export default function Obras() {
     const payload = {
       ...form,
       user_id: user.id,
+      avance:              0,
       superficie:          toNum(form.superficie, 0),
-      avance:              toNum(form.avance, 0),
       gastos_generales_pct: toNum(form.gastos_generales_pct, 15),
       utilidad_pct:        toNum(form.utilidad_pct, 10),
       fecha_inicio:        form.fecha_inicio || null,
@@ -230,17 +230,11 @@ export default function Obras() {
                 <input value={form.n_contrato} onChange={(e) => setForm({ ...form, n_contrato: e.target.value })} placeholder="CT-2025-001" />
               </div>
             </div>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>ESTADO</label>
-                <select value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })}>
-                  {ESTADOS.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>AVANCE INICIAL (%)</label>
-                <input type="number" min="0" max="100" value={form.avance} onChange={(e) => setForm({ ...form, avance: e.target.value })} />
-              </div>
+            <div className="form-group">
+              <label>ESTADO</label>
+              <select value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })}>
+                {ESTADOS.map((s) => <option key={s}>{s}</option>)}
+              </select>
             </div>
             <div className="form-grid">
               <div className="form-group">
