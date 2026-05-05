@@ -13,7 +13,7 @@ const EMPTY = {
   nombre: '', tipo: 'Edificio residencial', direccion: '', cliente: '',
   ito: '', superficie: '', responsable: '',
   estado: 'En Progreso', n_contrato: '', fecha_inicio: '', fecha_fin: '',
-  gastos_generales_pct: '15', utilidad_pct: '10', descripcion: '',
+  descripcion: '',
 };
 
 export default function Obras() {
@@ -56,12 +56,12 @@ export default function Obras() {
     const payload = {
       ...form,
       user_id: user.id,
-      avance:              0,
-      superficie:          toNum(form.superficie, 0),
-      gastos_generales_pct: toNum(form.gastos_generales_pct, 15),
-      utilidad_pct:        toNum(form.utilidad_pct, 10),
-      fecha_inicio:        form.fecha_inicio || null,
-      fecha_fin:           form.fecha_fin    || null,
+      avance:               0,
+      superficie:           toNum(form.superficie, 0),
+      gastos_generales_pct: 15,
+      utilidad_pct:         10,
+      fecha_inicio:         form.fecha_inicio || null,
+      fecha_fin:            form.fecha_fin    || null,
     };
     const { error } = await supabase.from('obras').insert([payload]);
     if (!error) { setShowModal(false); setForm(EMPTY); fetchObras(); }
@@ -235,16 +235,6 @@ export default function Obras() {
               <select value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })}>
                 {ESTADOS.map((s) => <option key={s}>{s}</option>)}
               </select>
-            </div>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>GASTOS GENERALES (%)</label>
-                <input type="number" step="0.1" value={form.gastos_generales_pct} onChange={(e) => setForm({ ...form, gastos_generales_pct: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>UTILIDADES (%)</label>
-                <input type="number" step="0.1" value={form.utilidad_pct} onChange={(e) => setForm({ ...form, utilidad_pct: e.target.value })} />
-              </div>
             </div>
             <div className="form-group">
               <label>DESCRIPCIÓN</label>

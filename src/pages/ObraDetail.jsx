@@ -76,6 +76,13 @@ export default function ObraDetail() {
     fetchTab(2);
   };
 
+  const updatePct = async (field, value) => {
+    const num = Number(value);
+    if (isNaN(num)) return;
+    await supabase.from('obras').update({ [field]: num }).eq('id', id);
+    fetchObra();
+  };
+
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct);
@@ -230,13 +237,22 @@ export default function ObraDetail() {
             <div style={{ background:'var(--bg3)',padding:'14px 18px',borderTop:'1px solid var(--border)' }}>
               <div style={{ display:'flex',justifyContent:'flex-end',gap:60 }}>
                 <div style={{ textAlign:'right' }}>
-                  {[['Costo directo',''],['Gastos Generales',''],['Utilidades',''],['Subtotal Neto',''],['IVA (19%)',''],['PRESUPUESTO TOTAL','']].map(([l]) => (
-                    <div key={l} style={{ fontSize:11,color:l==='PRESUPUESTO TOTAL'?'var(--accent)':'var(--text2)',fontWeight:l==='PRESUPUESTO TOTAL'?800:400,marginBottom:6,lineHeight:1.6 }}>{l}</div>
-                  ))}
+                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>Costo directo</div>
+                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6 }}>
+                    Gastos Generales
+                    <input type="number" step="0.1" value={obra.gastos_generales_pct} onChange={e => updatePct('gastos_generales_pct', e.target.value)} style={{ width:40,background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text)',padding:'0 4px',borderRadius:'var(--r2)',fontSize:10,textAlign:'center',height:18 }} />%
+                  </div>
+                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6 }}>
+                    Utilidades
+                    <input type="number" step="0.1" value={obra.utilidad_pct} onChange={e => updatePct('utilidad_pct', e.target.value)} style={{ width:40,background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text)',padding:'0 4px',borderRadius:'var(--r2)',fontSize:10,textAlign:'center',height:18 }} />%
+                  </div>
+                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>Subtotal Neto</div>
+                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>IVA (19%)</div>
+                  <div style={{ fontSize:11,color:'var(--accent)',fontWeight:800,marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>PRESUPUESTO TOTAL</div>
                 </div>
                 <div style={{ textAlign:'right',fontFamily:'Courier New' }}>
                   {[subtotal, gastosGenerales, utilidad, neto, iva, totalPres].map((v,i) => (
-                    <div key={i} style={{ fontSize: i===5?14:11,color:i===5?'var(--accent)':'var(--text)',fontWeight:i===5?800:600,marginBottom:6,lineHeight:1.6 }}>{clp(v)}</div>
+                    <div key={i} style={{ fontSize: i===5?14:11,color:i===5?'var(--accent)':'var(--text)',fontWeight:i===5?800:600,marginBottom:6,lineHeight:1.6,height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>{clp(v)}</div>
                   ))}
                 </div>
               </div>
