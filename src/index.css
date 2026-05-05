@@ -43,41 +43,62 @@
 
 html { font-size: 14px; }
 
-/* ── CSS LOGO CORPORATIVO ───────────── */
+/* ── CSS LOGO CORPORATIVO (PREMIUM) ───────────── */
 .css-logo {
   display: inline-flex;
   align-items: center;
-  font-family: 'Arial Black', 'Inter', sans-serif;
-  font-weight: 900;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 800; /* ExtraBold para elegancia sin ser tosco */
   letter-spacing: -2px;
-  padding: 10px 15px; /* Evita que los bordes o sombras se corten */
+  padding: 10px 15px;
   user-select: none;
+  position: relative;
+  /* Sombra ambiental muy suave y profesional */
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.4));
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
 }
+
+.css-logo:hover {
+  transform: scale(1.03) translateY(-2px);
+  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.6));
+}
+
 .css-logo .logo-s {
-  color: #e0e0e0;
-  /* Bordes resaltados */
-  -webkit-text-stroke: 1px #ffffff;
-  /* Profundidad 3D real */
-  text-shadow: 
-    1px 1px 0px #b0b0b0,
-    2px 2px 0px #a0a0a0,
-    3px 3px 0px #808080,
-    4px 4px 8px rgba(0, 0, 0, 0.6);
+  /* Gradiente Plata Líquida (Simula luz metálica) */
+  background: linear-gradient(135deg, #ffffff 0%, #e4e4e7 30%, #a1a1aa 70%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding-right: 4px;
+  -webkit-text-stroke: 1px rgba(255,255,255,0.4); /* Reflejo en el borde */
 }
+
 .css-logo .logo-4 {
-  color: #04437a; /* Azul corporativo */
-  margin-left: 2px;
-  /* Bordes resaltados */
-  -webkit-text-stroke: 1px #0a5b9e;
-  /* Profundidad 3D real */
-  text-shadow: 
-    1px 1px 0px #03325c,
-    2px 2px 0px #022645,
-    3px 3px 0px #011629,
-    4px 4px 8px rgba(0, 0, 0, 0.6);
+  /* Gradiente Zafiro Profundo */
+  background: linear-gradient(135deg, #38bdf8 0%, #0369a1 40%, #082f49 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-left: -4px; /* Kerning negativo para que se entrelacen sutilmente */
+  position: relative;
+  z-index: 2; /* El 4 se sobrepone levemente a la S */
+  -webkit-text-stroke: 1px rgba(56,189,248,0.2);
 }
-.css-logo.large { font-size: 85px; letter-spacing: -4px; }
-.css-logo.medium { font-size: 45px; letter-spacing: -2px; padding: 5px 10px; }
+
+/* Línea de acento inferior para unificar el logo */
+.css-logo::after {
+  content: '';
+  position: absolute;
+  bottom: 0px;
+  left: 20%;
+  width: 60%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #0369a1, transparent);
+  border-radius: 4px;
+  opacity: 0.7;
+  filter: blur(1px);
+}
+
+.css-logo.large { font-size: 85px; letter-spacing: -6px; }
+.css-logo.medium { font-size: 45px; letter-spacing: -3px; padding: 5px 10px; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
