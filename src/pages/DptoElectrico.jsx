@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { clp, calcPresupuesto, calcCompras, semaforoColor } from '../lib/helpers';
+import { clp, calcPresupuesto, calcCompras, calcAsistencia, semaforoColor } from '../lib/helpers';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
@@ -38,7 +38,8 @@ export default function DptoElectrico() {
           id, nombre, tipo, direccion, estado, avance, responsable, n_contrato,
           gastos_generales_pct, utilidad_pct, fecha_fin,
           presupuesto_items ( cantidad, precio_unitario ),
-          compras ( cantidad, precio_unitario )
+          compras ( cantidad, precio_unitario ),
+          asistencia ( total_pago )
         `)
         .eq('departamento', 'Eléctrico')
         .order('created_at', { ascending: false }),
@@ -49,7 +50,7 @@ export default function DptoElectrico() {
       setObras(data.map((o) => ({
         ...o,
         totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).total,
-        totalCompras: calcCompras(o.compras || []),
+        totalCompras: calcCompras(o.compras || []) + calcAsistencia(o.asistencia || []),
       })));
     }
     if (obrasConstruccion) setObrasMadre(obrasConstruccion);

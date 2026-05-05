@@ -37,6 +37,10 @@ export const calcPresupuesto = (items, ggPct = 15, utilPct = 10) => {
 export const calcCompras = (compras) =>
   compras.reduce((acc, c) => acc + Number(c.cantidad) * Number(c.precio_unitario), 0);
 
+// Calcular total de asistencia (Sueldos)
+export const calcAsistencia = (asistencias) =>
+  asistencias.reduce((acc, a) => acc + Number(a.total_pago), 0);
+
 // Color semáforo según variación financiera
 export const semaforoColor = (presupuesto, gasto) => {
   if (!presupuesto) return 'var(--text3)';

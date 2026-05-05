@@ -179,3 +179,54 @@ CREATE POLICY "fc_select" ON flujo_caja FOR SELECT USING (EXISTS (SELECT 1 FROM 
 CREATE POLICY "fc_insert" ON flujo_caja FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM obras WHERE obras.id = flujo_caja.obra_id AND obras.user_id = auth.uid()));
 CREATE POLICY "fc_update" ON flujo_caja FOR UPDATE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = flujo_caja.obra_id AND obras.user_id = auth.uid()));
 CREATE POLICY "fc_delete" ON flujo_caja FOR DELETE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = flujo_caja.obra_id AND obras.user_id = auth.uid()));
+
+-- ============================================================
+-- 9. MÓDULO RRHH: TRABAJADORES Y ASISTENCIA
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS trabajadores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    rut TEXT,
+    nombre TEXT NOT NULL,
+    cargo TEXT,
+    sueldo_base_diario NUMERIC DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS asistencia (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    obra_id UUID NOT NULL REFERENCES obras(id) ON DELETE CASCADE,
+    trabajador_id UUID NOT NULL REFERENCES trabajadores(id) ON DELETE CASCADE,
+    fecha DATE NOT NULL,
+    dias_trabajados NUMERIC DEFAULT 1,
+    horas_extra NUMERIC DEFAULT 0,
+    bono_trato NUMERIC DEFAULT 0,
+    descuentos NUMERIC DEFAULT 0,
+    total_pago NUMERIC DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- Habilitar RLS
+ALTER TABLE trabajadores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE asistencia ENABLE ROW LEVEL SECURITY;
+
+-- RLS: trabajadores
+DROP POLICY IF EXISTS "trab_select" ON trabajadores;
+DROP POLICY IF EXISTS "trab_insert" ON trabajadores;
+DROP POLICY IF EXISTS "trab_update" ON trabajadores;
+DROP POLICY IF EXISTS "trab_delete" ON trabajadores;
+CREATE POLICY "trab_select" ON trabajadores FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "trab_insert" ON trabajadores FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "trab_update" ON trabajadores FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "trab_delete" ON trabajadores FOR DELETE USING (auth.uid() = user_id);
+
+-- RLS: asistencia
+DROP POLICY IF EXISTS "asis_select" ON asistencia;
+DROP POLICY IF EXISTS "asis_insert" ON asistencia;
+DROP POLICY IF EXISTS "asis_update" ON asistencia;
+DROP POLICY IF EXISTS "asis_delete" ON asistencia;
+CREATE POLICY "asis_select" ON asistencia FOR SELECT USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
+CREATE POLICY "asis_insert" ON asistencia FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
+CREATE POLICY "asis_update" ON asistencia FOR UPDATE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
+CREATE POLICY "asis_delete" ON asistencia FOR DELETE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));

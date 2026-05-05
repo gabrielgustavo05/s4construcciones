@@ -1,17 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { clp, calcPresupuesto, calcCompras, today, parseExcel } from '../lib/helpers';
+import { clp, calcPresupuesto, calcCompras, calcAsistencia, today, parseExcel } from '../lib/helpers';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
-const TABS = ['Resumen','Presupuesto','Compras','Cotizaciones','Subcontratos','Hitos','Estados de Pago'];
+const TABS = ['Resumen','Presupuesto','RRHH','Compras','Cotizaciones','Subcontratos','Hitos','Estados de Pago'];
 
 export default function ObraDetail() {
   const { id } = useParams();
   const [obra, setObra] = useState(null);
   const [tab, setTab] = useState(0);
-  const [data, setData] = useState({ presupuesto: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [] });
+  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [] });
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [excelPreview, setExcelPreview] = useState(null);
@@ -20,6 +20,9 @@ export default function ObraDetail() {
   const [showEditObra, setShowEditObra] = useState(false);
   const [editForm, setEditForm] = useState({});
 
+  const [trabajadores, setTrabajadores] = useState([]);
+  const [newAsistencia, setNewAsistencia] = useState({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0 });
+
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
     setObra(o);
@@ -27,11 +30,23 @@ export default function ObraDetail() {
 
   const fetchTab = useCallback(async (tabIndex) => {
     setLoading(true);
-    const tables = ['presupuesto_items','compras','cotizaciones','subcontratos','hitos','estados_pago'];
+    const tables = ['presupuesto_items','asistencia','compras','cotizaciones','subcontratos','hitos','estados_pago'];
     if (tabIndex === 0) { setLoading(false); return; }
     const table = tables[tabIndex - 1];
-    const { data: rows } = await supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true });
+    
+    let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true });
+    if (table === 'asistencia') {
+      query = supabase.from('asistencia').select('*, trabajador:trabajador_id(*)').eq('obra_id', id).order('fecha', { ascending: false });
+    }
+
+    const { data: rows } = await query;
     setData(d => ({ ...d, [table === 'presupuesto_items' ? 'presupuesto' : table]: rows || [] }));
+
+    if (table === 'asistencia') {
+      const { data: tr } = await supabase.from('trabajadores').select('*').order('nombre');
+      setTrabajadores(tr || []);
+    }
+
     setLoading(false);
   }, [id]);
 
@@ -83,7 +98,37 @@ export default function ObraDetail() {
     e.preventDefault();
     await supabase.from('compras').insert([{ ...newCompra, obra_id: id, cantidad: Number(newCompra.cantidad), precio_unitario: Number(newCompra.precio_unitario) }]);
     setNewCompra({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today() });
-    fetchTab(2);
+    fetchTab(3); // tab 3 es Compras
+  };
+
+  const addAsistencia = async (e) => {
+    e.preventDefault();
+    const tr = trabajadores.find(t => t.id === newAsistencia.trabajador_id);
+    if (!tr) return alert('Seleccione un trabajador');
+    
+    const dias = Number(newAsistencia.dias_trabajados);
+    const bono = Number(newAsistencia.bono_trato);
+    const horas = Number(newAsistencia.horas_extra);
+    const desc = Number(newAsistencia.descuentos);
+    const sueldoBase = Number(tr.sueldo_base_diario);
+    
+    const valorHora = sueldoBase / 8;
+    const pagoHorasExtra = horas * valorHora * 1.5;
+    const total_pago = (sueldoBase * dias) + bono + pagoHorasExtra - desc;
+    
+    const payload = {
+      ...newAsistencia,
+      obra_id: id,
+      dias_trabajados: dias,
+      bono_trato: bono,
+      horas_extra: horas,
+      descuentos: desc,
+      total_pago: Math.round(total_pago)
+    };
+    
+    await supabase.from('asistencia').insert([payload]);
+    setNewAsistencia({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0 });
+    fetchTab(2); // tab 2 es Asistencia
   };
 
   const updatePct = async (field, value) => {
@@ -96,7 +141,7 @@ export default function ObraDetail() {
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct);
-  const totalComp = calcCompras(data.compras);
+  const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia);
 
   return (
     <div className="detail-overlay">
@@ -276,8 +321,64 @@ export default function ObraDetail() {
         </div>
       )}
 
-      {/* ── TAB 2: COMPRAS ── */}
+      {/* ── TAB 2: RRHH / ASISTENCIA ── */}
       {tab === 2 && (
+        <div className="tab-panel active">
+          <div className="card" style={{ marginBottom:14 }}>
+            <div className="card-title">👷 Registrar Asistencia / Trato</div>
+            <form onSubmit={addAsistencia} className="form-grid" style={{ alignItems:'flex-end' }}>
+              <div className="form-group">
+                <label>Trabajador</label>
+                <select required value={newAsistencia.trabajador_id} onChange={e => setNewAsistencia({...newAsistencia, trabajador_id: e.target.value})}>
+                  <option value="">Seleccione...</option>
+                  {trabajadores.map(t => <option key={t.id} value={t.id}>{t.nombre} ({t.cargo})</option>)}
+                </select>
+              </div>
+              <div className="form-group"><label>Fecha</label><input type="date" required value={newAsistencia.fecha} onChange={e => setNewAsistencia({...newAsistencia, fecha: e.target.value})} /></div>
+              <div className="form-group"><label>Días Trab.</label><input type="number" step="0.5" min="0" required value={newAsistencia.dias_trabajados} onChange={e => setNewAsistencia({...newAsistencia, dias_trabajados: e.target.value})} /></div>
+              <div className="form-group"><label>Horas Extras</label><input type="number" step="0.5" min="0" required value={newAsistencia.horas_extra} onChange={e => setNewAsistencia({...newAsistencia, horas_extra: e.target.value})} /></div>
+              <div className="form-group"><label>Bono / Trato ($)</label><input type="number" required value={newAsistencia.bono_trato} onChange={e => setNewAsistencia({...newAsistencia, bono_trato: e.target.value})} /></div>
+              <div className="form-group"><label>Descuentos ($)</label><input type="number" required value={newAsistencia.descuentos} onChange={e => setNewAsistencia({...newAsistencia, descuentos: e.target.value})} /></div>
+              <button className="btn btn-a">Guardar Planilla</button>
+            </form>
+          </div>
+
+          <div className="card" style={{ padding:0 }}>
+            <div className="tw">
+              <table>
+                <thead><tr><th>Fecha</th><th>Trabajador</th><th>Cargo</th><th>Días</th><th>H. Ext</th><th>Bonos</th><th>Dsctos</th><th>Total Pago</th><th></th></tr></thead>
+                <tbody>
+                  {data.asistencia.length === 0 ? (
+                    <tr><td colSpan="9" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>No hay registros de asistencia.</td></tr>
+                  ) : data.asistencia.map(a => (
+                    <tr key={a.id}>
+                      <td className="ts">{a.fecha}</td>
+                      <td><strong>{a.trabajador?.nombre || 'Desconocido'}</strong></td>
+                      <td className="ts tx">{a.trabajador?.cargo}</td>
+                      <td className="mono">{a.dias_trabajados}</td>
+                      <td className="mono">{a.horas_extra}</td>
+                      <td className="mono tg">{clp(a.bono_trato)}</td>
+                      <td className="mono" style={{ color:'var(--red)' }}>{a.descuentos > 0 ? clp(-a.descuentos) : 0}</td>
+                      <td className="mono" style={{ fontWeight:800, color:'var(--accent)' }}>{clp(a.total_pago)}</td>
+                      <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('asistencia', a.id)}>✕</button></td>
+                    </tr>
+                  ))}
+                  {data.asistencia.length > 0 && (
+                    <tr style={{ background:'var(--bg3)', fontWeight:800 }}>
+                      <td colSpan="7" style={{ textAlign:'right' }}>Total Mano de Obra:</td>
+                      <td className="mono" style={{ color:'var(--accent)' }}>{clp(calcAsistencia(data.asistencia))}</td>
+                      <td></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: COMPRAS ── */}
+      {tab === 3 && (
         <div className="tab-panel active">
           <form onSubmit={addCompra} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
             <div style={{ display:'grid',gridTemplateColumns:'1fr 70px 100px 130px 1fr 120px 44px',gap:8,alignItems:'end' }}>
@@ -335,8 +436,8 @@ export default function ObraDetail() {
         </div>
       )}
 
-      {/* ── TAB 3: COTIZACIONES ── */}
-      {tab === 3 && (
+      {/* ── TAB 4: COTIZACIONES ── */}
+      {tab === 4 && (
         <div className="tab-panel active">
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
@@ -363,8 +464,8 @@ export default function ObraDetail() {
         </div>
       )}
 
-      {/* ── TAB 4: SUBCONTRATOS ── */}
-      {tab === 4 && (
+      {/* ── TAB 5: SUBCONTRATOS ── */}
+      {tab === 5 && (
         <div className="tab-panel active">
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
@@ -396,8 +497,8 @@ export default function ObraDetail() {
         </div>
       )}
 
-      {/* ── TAB 5: HITOS ── */}
-      {tab === 5 && (
+      {/* ── TAB 6: HITOS ── */}
+      {tab === 6 && (
         <div className="tab-panel active">
           {data.hitos.map(h => {
             const col = h.estado==='Completado'?'var(--green)':h.estado==='En curso'?'var(--blue)':h.estado==='Atrasado'?'var(--red)':'var(--bg5)';
@@ -417,8 +518,8 @@ export default function ObraDetail() {
         </div>
       )}
 
-      {/* ── TAB 6: ESTADOS DE PAGO ── */}
-      {tab === 6 && (
+      {/* ── TAB 7: ESTADOS DE PAGO ── */}
+      {tab === 7 && (
         <div className="tab-panel active">
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
