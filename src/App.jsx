@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Obras from './pages/Obras';
+import DptoElectrico from './pages/DptoElectrico';
 import ObraDetail from './pages/ObraDetail';
 import Cotizaciones from './pages/Cotizaciones';
 import Subcontratos from './pages/Subcontratos';
@@ -42,6 +43,7 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard"    element={<Dashboard />} />
             <Route path="obras"        element={<Obras />} />
+            <Route path="electrico"    element={<DptoElectrico />} />
             <Route path="obra/:id"     element={<ObraDetail />} />
             <Route path="cotizaciones" element={<Cotizaciones />} />
             <Route path="subcontratos" element={<Subcontratos />} />

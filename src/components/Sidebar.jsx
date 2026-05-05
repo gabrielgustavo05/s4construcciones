@@ -6,6 +6,7 @@ const NAV = [
   { section: 'Principal', items: [
     { to: '/dashboard', icon: '📊', label: 'Dashboard' },
     { to: '/obras',     icon: '🏢', label: 'Obras' },
+    { to: '/electrico', icon: '⚡', label: 'Dpto. Eléctrico' },
   ]},
   { section: 'Gestión técnica', items: [
     { to: '/cotizaciones', icon: '📋', label: 'Cotizaciones' },

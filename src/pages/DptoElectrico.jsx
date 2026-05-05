@@ -16,7 +16,7 @@ const EMPTY = {
   descripcion: '',
 };
 
-export default function Obras() {
+export default function DptoElectrico() {
   const { user } = useAuth();
   const navigate  = useNavigate();
   const [obras, setObras]   = useState([]);
@@ -35,7 +35,7 @@ export default function Obras() {
         presupuesto_items ( cantidad, precio_unitario ),
         compras ( cantidad, precio_unitario )
       `)
-      .eq('departamento', 'Construcción')
+      .eq('departamento', 'Eléctrico')
       .order('created_at', { ascending: false });
 
     if (!error) {
@@ -57,7 +57,7 @@ export default function Obras() {
     const payload = {
       ...form,
       user_id: user.id,
-      departamento:         'Construcción',
+      departamento:         'Eléctrico',
       avance:               0,
       superficie:           toNum(form.superficie, 0),
       gastos_generales_pct: 15,
@@ -88,10 +88,10 @@ export default function Obras() {
     <div>
       <div className="ph">
         <div>
-          <h2>Obras</h2>
-          <p>Gestión completa del portafolio de proyectos</p>
+          <h2>Departamento Eléctrico</h2>
+          <p>Gestión completa de proyectos eléctricos</p>
         </div>
-        <button className="btn btn-a" onClick={() => setShowModal(true)}>+ Nueva obra</button>
+        <button className="btn btn-a" onClick={() => setShowModal(true)}>+ Nuevo proyecto eléctrico</button>
       </div>
 
       <div className="pb">
@@ -118,9 +118,9 @@ export default function Obras() {
         {/* Lista de obras */}
         {filtradas.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">🏢</div>
-            <h3>No hay obras</h3>
-            <p>Crea tu primera obra con el botón "Nueva obra"</p>
+            <div className="empty-icon">⚡</div>
+            <h3>No hay proyectos eléctricos</h3>
+            <p>Crea tu primer proyecto con el botón superior</p>
           </div>
         ) : filtradas.map((o) => {
           const dif   = o.totalPres - o.totalCompras;
@@ -184,7 +184,7 @@ export default function Obras() {
 
       {/* Modal Nueva Obra */}
       {showModal && (
-        <Modal title="🏢 Nueva obra" onClose={() => { setShowModal(false); setForm(EMPTY); }}>
+        <Modal title="⚡ Nuevo proyecto eléctrico" onClose={() => { setShowModal(false); setForm(EMPTY); }}>
           <form onSubmit={handleSave}>
             <div className="form-grid">
               <div className="form-group">
@@ -244,7 +244,7 @@ export default function Obras() {
             </div>
             <div className="modal-actions">
               <button type="button" className="btn btn-s" onClick={() => { setShowModal(false); setForm(EMPTY); }}>Cancelar</button>
-              <button type="submit" className="btn btn-a">Guardar obra</button>
+              <button type="submit" className="btn btn-a">Guardar proyecto</button>
             </div>
           </form>
         </Modal>
