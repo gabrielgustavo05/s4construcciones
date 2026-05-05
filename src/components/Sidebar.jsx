@@ -9,8 +9,9 @@ const NAV = [
     { to: '/electrico', icon: '⚡', label: 'Dpto. Eléctrico' },
   ]},
   { section: 'Gestión técnica', items: [
+    { to: '/personal',     icon: '👷', label: 'Personal (Sueldos)' },
     { to: '/cotizaciones', icon: '📋', label: 'Cotizaciones' },
-    { to: '/subcontratos', icon: '👷', label: 'Subcontratos' },
+    { to: '/subcontratos', icon: '🤝', label: 'Subcontratos' },
     { to: '/cronograma',   icon: '📅', label: 'Cronograma' },
   ]},
   { section: 'Finanzas', items: [
