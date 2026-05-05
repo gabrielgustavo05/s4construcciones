@@ -27,10 +27,9 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <div className="login-box">
-        <div className="login-logo">
-          <div className="login-icon">🏗️</div>
-          <h1>Constructora S4</h1>
-          <p>Sistema integral de gestión de obras · v2.0</p>
+        <div className="login-logo-container" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img src="/logo.png" alt="S4 Corporativo" style={{ width: '180px', height: 'auto', filter: 'drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.4))' }} />
+          <p style={{ marginTop: '1rem', color: 'var(--text2)', fontSize: '0.9rem', letterSpacing: '1px' }}>SISTEMA INTEGRAL DE GESTIÓN v2.0</p>
         </div>
 
         <form onSubmit={handleLogin}>
@@ -57,10 +56,9 @@ export default function Login() {
             />
           </div>
 
-          {error && <p className="login-error">{error}</p>}
-
-          <button type="submit" className="btn-login" disabled={loading}>
-            {loading ? 'Ingresando...' : 'Ingresar al sistema →'}
+          {error && <div className="login-error">{error}</div>}
+          <button type="submit" className="btn-corp" disabled={loading} style={{ marginTop: '1rem' }}>
+            {loading ? 'INGRESANDO...' : 'INGRESAR AL SISTEMA'}
           </button>
         </form>
 
