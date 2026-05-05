@@ -45,12 +45,18 @@ export default function Sidebar({ open, onClose }) {
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         {/* Marca */}
         <div className="sb-top">
-          <div className="sb-brand">
-            <div className="sb-brand-icon">🏗️</div>
-            <div>
-              <div className="sb-brand-name">Constructora S4</div>
-              <div className="sb-brand-ver">Sistema de gestión v2.0</div>
-            </div>
+          <div className="sb-brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid var(--border)', gap: 8 }}>
+            <img 
+              src="/logo.png" 
+              alt="S4 Logo" 
+              style={{ 
+                height: 55, 
+                width: 'auto', 
+                objectFit: 'contain',
+                filter: 'drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5))'
+              }} 
+            />
+            <div className="sb-brand-ver" style={{ letterSpacing: 1 }}>SISTEMA DE GESTIÓN v2.0</div>
           </div>
           <div className="sb-user">
             <div className="sb-avatar">{initials}</div>
