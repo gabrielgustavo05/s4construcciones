@@ -46,26 +46,38 @@ html { font-size: 14px; }
 /* ── CSS LOGO CORPORATIVO ───────────── */
 .css-logo {
   display: inline-flex;
-  align-items: baseline;
-  font-family: 'Inter', sans-serif;
+  align-items: center;
+  font-family: 'Arial Black', 'Inter', sans-serif;
   font-weight: 900;
-  font-style: italic;
-  letter-spacing: -3px;
-  filter: drop-shadow(0px 6px 8px rgba(0,0,0,0.4));
+  letter-spacing: -2px;
+  padding: 10px 15px; /* Evita que los bordes o sombras se corten */
   user-select: none;
 }
 .css-logo .logo-s {
-  background: linear-gradient(135deg, #f5f5f5 0%, #b0b0b0 50%, #e0e0e0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  padding-right: 2px;
+  color: #e0e0e0;
+  /* Bordes resaltados */
+  -webkit-text-stroke: 1px #ffffff;
+  /* Profundidad 3D real */
+  text-shadow: 
+    1px 1px 0px #b0b0b0,
+    2px 2px 0px #a0a0a0,
+    3px 3px 0px #808080,
+    4px 4px 8px rgba(0, 0, 0, 0.6);
 }
 .css-logo .logo-4 {
   color: #04437a; /* Azul corporativo */
   margin-left: 2px;
+  /* Bordes resaltados */
+  -webkit-text-stroke: 1px #0a5b9e;
+  /* Profundidad 3D real */
+  text-shadow: 
+    1px 1px 0px #03325c,
+    2px 2px 0px #022645,
+    3px 3px 0px #011629,
+    4px 4px 8px rgba(0, 0, 0, 0.6);
 }
-.css-logo.large { font-size: 100px; letter-spacing: -6px; }
-.css-logo.medium { font-size: 50px; letter-spacing: -3px; }
+.css-logo.large { font-size: 85px; letter-spacing: -4px; }
+.css-logo.medium { font-size: 45px; letter-spacing: -2px; padding: 5px 10px; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
