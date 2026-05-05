@@ -49,9 +49,20 @@ export default function Obras() {
 
   useEffect(() => { fetchObras(); }, [fetchObras]);
 
+  const toNum = (v, def = null) => v === '' || v === undefined ? def : Number(v);
+
   const handleSave = async (e) => {
     e.preventDefault();
-    const payload = { ...form, user_id: user.id };
+    const payload = {
+      ...form,
+      user_id: user.id,
+      superficie:          toNum(form.superficie, 0),
+      avance:              toNum(form.avance, 0),
+      gastos_generales_pct: toNum(form.gastos_generales_pct, 15),
+      utilidad_pct:        toNum(form.utilidad_pct, 10),
+      fecha_inicio:        form.fecha_inicio || null,
+      fecha_fin:           form.fecha_fin    || null,
+    };
     const { error } = await supabase.from('obras').insert([payload]);
     if (!error) { setShowModal(false); setForm(EMPTY); fetchObras(); }
     else alert('Error: ' + error.message);
