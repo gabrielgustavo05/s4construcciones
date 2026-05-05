@@ -11,7 +11,7 @@ const EMPTY = {
   sueldo_base_mensual: ''
 };
 
-const CARGOS = ['Maestro', 'Jornal', 'Capataz', 'Supervisor', 'Conductor', 'Operador', 'Administrativo', 'Otro'];
+const CARGOS = ['Maestro', 'Jornal', 'Capataz', 'Supervisor', 'Eléctrico', 'Conductor', 'Operador', 'Administrativo', 'Otro'];
 
 export default function Personal() {
   const { user } = useAuth();
