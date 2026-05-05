@@ -76,10 +76,10 @@ export const parseExcel = async (file) => {
         let colMap = { num: -1, desc: -1, unit: -1, qty: -1, price: -1, total: -1 };
 
         const keywords = {
-          num: ['n°', 'n', 'item', 'ítem', '#', 'número', 'numero', 'cod', 'código'],
+          num: ['n°', 'item', 'ítem', '#', 'número', 'numero', 'cod', 'código', 'nro'],
           desc: ['descripcion', 'descripción', 'nombre', 'partida', 'detalle', 'concepto'],
-          unit: ['unidad', 'und', 'u', 'UM', 'unid'],
-          qty: ['cantidad', 'cant', 'qty', 'q', 'cantidad total'],
+          unit: ['unidad', 'und', 'um', 'unid'],
+          qty: ['cantidad', 'cant', 'qty', 'cantidad total'],
           price: ['precio', 'p.unit', 'p. unit', 'precio unitario', 'valor unit', 'valor', 'pu', 'p/u'],
           total: ['total', 'monto', 'importe', 'subtotal', 'precio total'],
         };
