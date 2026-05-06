@@ -76,24 +76,32 @@ export const parseExcel = async (file) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-// Parser de números inteligente (Soporta formato Chileno y Americano)
+// Parser de números Chileno (Punto = Miles, Coma = Decimal)
 export const parseNum = (v) => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
+  
+  // Limpiar: quitar $, espacios, %, y cualquier carácter no numérico excepto punto y coma
   let s = String(v).trim().replace(/[$\s%]/g, '');
   
   if (!s) return 0;
 
-  // Detectar cuál es el separador decimal (el último punto o coma)
-  const lastComma = s.lastIndexOf(',');
-  const lastDot = s.lastIndexOf('.');
-  
-  if (lastComma > lastDot) {
-    // Formato Chileno: 1.234,56 -> quitar puntos, cambiar coma por punto
+  // CASO CHILE: 1.234,56 o 1.234
+  // Si hay coma, es el decimal. El punto es miles.
+  if (s.includes(',')) {
     s = s.replace(/\./g, '').replace(',', '.');
-  } else if (lastDot > lastComma) {
-    // Formato Americano: 1,234.56 -> quitar comas
-    s = s.replace(/,/g, '');
+  } else {
+    // Si NO hay coma, pero hay punto(s), el punto es miles (ej: 1.000 -> 1000)
+    // A menos que sea un formato puramente decimal tipo 1.5 (muy raro en CLP)
+    // Pero en construcción, 1.000 siempre es mil.
+    if (s.includes('.')) {
+      // Si el punto está seguido por 3 dígitos al final, es casi seguro que es miles
+      // O si hay más de un punto.
+      const parts = s.split('.');
+      if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+        s = s.replace(/\./g, '');
+      }
+    }
   }
 
   const n = parseFloat(s);
