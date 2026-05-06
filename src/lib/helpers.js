@@ -76,11 +76,31 @@ export const parseExcel = async (file) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-// Limpiador de números Robusto (Maneja comas chilenas y puntos de miles)
+// Limpiador de números Robusto e Inteligente
 export const cleanNum = (val) => {
-  if (!val) return 0;
+  if (val === null || val === undefined || val === '') return 0;
   if (typeof val === 'number') return val;
-  const s = String(val).trim().replace(/[$.]/g, '').replace(',', '.');
+  let s = String(val).trim();
+  
+  // Caso 1: Tiene coma. La coma es el decimal. Borramos los puntos (miles).
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    // Caso 2: No tiene coma, pero tiene punto(s).
+    const dots = (s.match(/\./g) || []).length;
+    if (dots > 1) {
+      // Más de un punto = Miles (ej: 1.000.000)
+      s = s.replace(/\./g, '');
+    } else if (dots === 1) {
+      // Un solo punto. ¿Es decimal (114.04) o miles (22.600)?
+      const parts = s.split('.');
+      if (parts[1].length === 3) {
+        // Si tiene 3 dígitos después del punto, es miles.
+        s = s.replace(/\./g, '');
+      }
+      // Si no, es decimal (lo dejamos como está)
+    }
+  }
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
