@@ -220,6 +220,13 @@ export default function ObraDetail() {
     fetchObra();
   };
 
+  const updateItemField = async (itemId, field, value) => {
+    const num = Number(value);
+    if (isNaN(num)) return;
+    await supabase.from('presupuesto_items').update({ [field]: num }).eq('id', itemId);
+    fetchTab(1);
+  };
+
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct);
@@ -407,11 +414,29 @@ export default function ObraDetail() {
                         <td className="ts tx">{p.codigo||'-'}</td>
                         <td><strong>{p.descripcion}</strong></td>
                         <td><span style={{ background:'var(--bg4)',padding:'2px 6px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{p.unidad}</span></td>
-                        <td className="mono" style={{ textAlign:'right' }}>{p.cantidad}</td>
+                        <td className="mono" style={{ textAlign:'right' }}>
+                          <input 
+                            type="number" 
+                            defaultValue={p.cantidad} 
+                            onBlur={(e) => updateItemField(p.id, 'cantidad', e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ width:70, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
+                          />
+                        </td>
                         <td className="mono" style={{ textAlign:'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
                           {(p.presupuesto_materiales && p.presupuesto_materiales.length > 0) ? 'Sub-lista' : (cantComprada > 0 ? cantComprada : '-')}{sobrecompra && ` ⚠️`}
                         </td>
-                        <td className="mono" style={{ textAlign:'right' }}>{clp(p.precio_unitario)}</td>
+                        <td className="mono" style={{ textAlign:'right' }}>
+                          <input 
+                            type="number" 
+                            defaultValue={p.precio_unitario} 
+                            onBlur={(e) => updateItemField(p.id, 'precio_unitario', e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ width:90, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
+                          />
+                        </td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
