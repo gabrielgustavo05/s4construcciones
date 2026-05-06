@@ -374,9 +374,8 @@ export default function ObraDetail() {
                     const isTitle = (p.cantidad === 0 && p.precio_unitario === 0 && p.codigo);
                     
                     let sobrecompra = false;
-                    let cantComprada = 0;
                     const comprasPartida = data.compras_cotejo.filter(c => c.presupuesto_item_id === p.id);
-                    cantComprada = comprasPartida.reduce((s, c) => s + (c.cantidad || 0), 0);
+                    const cantComprada = comprasPartida.reduce((s, c) => s + (c.cantidad || 0), 0);
                     
                     if (p.presupuesto_materiales && p.presupuesto_materiales.length > 0) {
                       p.presupuesto_materiales.forEach(mat => {

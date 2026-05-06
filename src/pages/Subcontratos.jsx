@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { clp, today } from '../lib/helpers';
+import { clp } from '../lib/helpers';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
