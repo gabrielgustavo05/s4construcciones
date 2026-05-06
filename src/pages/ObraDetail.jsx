@@ -379,7 +379,7 @@ export default function ObraDetail() {
                     
                     if (p.presupuesto_materiales && p.presupuesto_materiales.length > 0) {
                       p.presupuesto_materiales.forEach(mat => {
-                        const compradoMat = comprasPartida.filter(c => c.descripcion.toLowerCase() === mat.descripcion.toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+                        const compradoMat = comprasPartida.filter(c => (c.descripcion || '').toLowerCase() === (mat.descripcion || '').toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
                         if (compradoMat > mat.cantidad) sobrecompra = true;
                       });
                     } else {

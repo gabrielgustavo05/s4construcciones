@@ -55,7 +55,7 @@ export default function Alertas() {
         
         if (p.presupuesto_materiales && p.presupuesto_materiales.length > 0) {
           p.presupuesto_materiales.forEach(mat => {
-            const compradoMat = comprasPartida.filter(c => c.descripcion.toLowerCase() === mat.descripcion.toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+            const compradoMat = comprasPartida.filter(c => (c.descripcion || '').toLowerCase() === (mat.descripcion || '').toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
             if (compradoMat > mat.cantidad) {
                const exceso = compradoMat - mat.cantidad;
                list.push({ ico: '📦', niv: 'c', tit: `Sobrecompra: ${mat.descripcion}`, desc: `Obra: ${o.nombre} · Partida: ${p.descripcion} · Requerido: ${mat.cantidad} · Comprado: ${compradoMat} · Exceso: +${exceso}`, oId: o.id });
