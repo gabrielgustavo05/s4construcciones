@@ -221,9 +221,12 @@ export default function ObraDetail() {
   };
 
   const updateItemField = async (itemId, field, value) => {
-    const num = Number(value);
-    if (isNaN(num)) return;
-    await supabase.from('presupuesto_items').update({ [field]: num }).eq('id', itemId);
+    let finalVal = value;
+    if (field === 'cantidad' || field === 'precio_unitario') {
+      finalVal = Number(value);
+      if (isNaN(finalVal)) return;
+    }
+    await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
     fetchTab(1);
   };
 
@@ -397,7 +400,16 @@ export default function ObraDetail() {
                       return (
                         <tr key={p.id} style={{ background: 'var(--bg3)' }}>
                           <td className="ts tx">{i+1}</td>
-                          <td className="ts" style={{ color: 'var(--accent)', fontWeight: 800 }}>{p.codigo}</td>
+                          <td className="ts">
+                            <input 
+                              defaultValue={p.codigo} 
+                              onBlur={(e) => updateItemField(p.id, 'codigo', e.target.value)}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ width:60, background:'transparent', border:'none', color:'var(--accent)', fontWeight:800, fontSize:12 }}
+                            />
+                          </td>
                           <td colSpan="6"><strong>{p.descripcion}</strong></td>
                           <td>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -411,7 +423,16 @@ export default function ObraDetail() {
                     return (
                       <tr key={p.id} onClick={() => setSelectedPartida(p)} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
                         <td className="ts tx">{i+1}</td>
-                        <td className="ts tx">{p.codigo||'-'}</td>
+                        <td className="ts tx">
+                           <input 
+                             defaultValue={p.codigo} 
+                             onBlur={(e) => updateItemField(p.id, 'codigo', e.target.value)}
+                             onFocus={(e) => e.target.select()}
+                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                             onClick={(e) => e.stopPropagation()}
+                             style={{ width:60, background:'transparent', border:'none', color:'inherit', fontSize:12 }}
+                           />
+                        </td>
                         <td><strong>{p.descripcion}</strong></td>
                         <td><span style={{ background:'var(--bg4)',padding:'2px 6px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{p.unidad}</span></td>
                         <td className="mono" style={{ textAlign:'right' }}>
