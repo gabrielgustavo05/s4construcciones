@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, parseExcel, parseNum } from '../lib/helpers';
+import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, parseExcel, parseNum, cleanNum } from '../lib/helpers';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
@@ -623,15 +623,10 @@ export default function ObraDetail() {
                         </td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
                           {(() => {
-                            const clean = (val) => {
-                              if (!val) return 0;
-                              if (typeof val === 'number') return val;
-                              const s = String(val).replace(/[$.]/g, '').replace(',', '.');
-                              return parseFloat(s) || 0;
-                            };
-                            const c = clean(p.cantidad);
-                            const u = clean(p.precio_unitario);
-                            return clp(Math.round(c * u));
+                            const c = cleanNum(p.cantidad);
+                            const u = cleanNum(p.precio_unitario);
+                            const res = c * u;
+                            return res === 0 && (p.cantidad || p.precio_unitario) ? <span style={{color:'var(--orange)'}}>Revisar</span> : clp(res);
                           })()}
                         </td>
                         <td>
