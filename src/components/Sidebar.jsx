@@ -55,7 +55,7 @@ export default function Sidebar({ open, onClose }) {
           <div className="sb-user">
             <div className="sb-avatar">{initials}</div>
             <div>
-              <div className="sb-uname">Jefatura</div>
+              <div className="sb-uname">{user?.email === 'fsalinas@s4chile.cl' ? 'Gerente General' : 'Jefatura'}</div>
               <div className="sb-urole">{user?.email}</div>
             </div>
           </div>
