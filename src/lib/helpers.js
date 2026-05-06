@@ -75,17 +75,31 @@ export const parseExcel = async (file) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
+        // Parser de números en formato chileno (1.234.567 o 1.234.567,50)
+        const parseNum = (v) => {
+          if (v === null || v === undefined || v === '') return 0;
+          if (typeof v === 'number') return v;
+          const s = String(v).trim().replace(/[$\s%]/g, '');
+          // Formato chileno: puntos como miles, coma como decimal
+          if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+            return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+          }
+          // Formato con coma decimal sin miles
+          return parseFloat(s.replace(',', '.'));
+        };
+
         // Encontrar fila de encabezados
         let headerRow = -1;
         let colMap = { num: -1, desc: -1, unit: -1, qty: -1, price: -1, total: -1 };
 
         const keywords = {
-          num: ['n°', 'item', 'ítem', '#', 'número', 'numero', 'cod', 'código', 'nro'],
-          desc: ['descripcion', 'descripción', 'nombre', 'partida', 'detalle', 'concepto'],
-          unit: ['unidad', 'und', 'um', 'unid'],
-          qty: ['cantidad', 'cant', 'qty', 'cantidad total'],
-          price: ['precio', 'p.unit', 'p. unit', 'precio unitario', 'valor unit', 'valor', 'pu', 'p/u'],
-          total: ['total', 'monto', 'importe', 'subtotal', 'precio total'],
+          num:   ['n°', 'nro', 'item', 'ítem', 'cod', 'código', 'codigo', '#'],
+          desc:  ['descripcion', 'descripción', 'nombre', 'partida', 'detalle', 'concepto', 'glosa'],
+          unit:  ['unidad', 'und', 'um', 'unid', 'u.m'],
+          qty:   ['cantidad', 'cant', 'qty', 'cantidad total'],
+          // precio: primero buscar específico para evitar confundir con "precio total"
+          price: ['precio unit', 'p. unit', 'p.unit', 'p.u.', 'p. u.', 'pu', 'p/u', 'v.unit', 'valor unit', 'costo unit', 'precio unitario', 'valor unitario', 'costo unitario'],
+          total: ['precio total', 'precio fin', 'precio final', 'importe', 'total', 'subtotal', 'monto total', 'monto'],
         };
 
         for (let r = 0; r < Math.min(20, raw.length); r++) {
@@ -93,9 +107,22 @@ export const parseExcel = async (file) => {
           let matches = 0;
           const tryMap = { num: -1, desc: -1, unit: -1, qty: -1, price: -1, total: -1 };
 
+          // Primero buscar coincidencias exactas, luego parciales
           for (const [key, kws] of Object.entries(keywords)) {
             for (let c = 0; c < row.length; c++) {
-              if (kws.some((kw) => row[c].includes(kw))) {
+              const cell = row[c];
+              // Coincidencia exacta primero
+              if (kws.some((kw) => cell === kw)) {
+                if (tryMap[key] === -1) { tryMap[key] = c; matches++; }
+              }
+            }
+          }
+          // Si no encontró exactas, buscar parciales
+          for (const [key, kws] of Object.entries(keywords)) {
+            if (tryMap[key] !== -1) continue;
+            for (let c = 0; c < row.length; c++) {
+              const cell = row[c];
+              if (kws.some((kw) => cell.includes(kw))) {
                 if (tryMap[key] === -1) { tryMap[key] = c; matches++; }
               }
             }
@@ -117,10 +144,10 @@ export const parseExcel = async (file) => {
         const items = [];
         for (let r = headerRow + 1; r < raw.length; r++) {
           const row = raw[r];
-          const desc = colMap.desc !== -1 ? String(row[colMap.desc] || '').trim() : '';
-          const qty = colMap.qty !== -1 ? parseFloat(row[colMap.qty]) : 0;
-          const price = colMap.price !== -1 ? parseFloat(row[colMap.price]) : 0;
-          const codigo = colMap.num !== -1 ? String(row[colMap.num] || '').trim() : '';
+          const desc   = colMap.desc  !== -1 ? String(row[colMap.desc]  || '').trim() : '';
+          const qty    = colMap.qty   !== -1 ? parseNum(row[colMap.qty])   : 0;
+          const price  = colMap.price !== -1 ? parseNum(row[colMap.price]) : 0;
+          const codigo = colMap.num   !== -1 ? String(row[colMap.num]   || '').trim() : '';
 
           // Filtrar filas vacías o inválidas (si no tiene ni código ni montos, se ignora)
           if (!desc || desc.toLowerCase().includes('total')) continue;
