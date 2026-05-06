@@ -142,3 +142,78 @@ export const parseExcel = async (file) => {
     reader.readAsArrayBuffer(file);
   });
 };
+
+// Importador Excel para Personal
+export const parsePersonalExcel = async (file) => {
+  const XLSX = await import('xlsx');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        let headerRow = -1;
+        let colMap = { rut: -1, nombre: -1, cargo: -1, sueldo: -1 };
+
+        const keywords = {
+          rut: ['rut', 'r.u.t', 'id', 'documento', 'cedula', 'cédula'],
+          nombre: ['nombre', 'trabajador', 'empleado', 'colaborador', 'apellidos'],
+          cargo: ['cargo', 'puesto', 'rol', 'especialidad', 'funcion', 'función'],
+          sueldo: ['sueldo', 'bruto', 'base', 'renta', 'salario', 'pago'],
+        };
+
+        for (let r = 0; r < Math.min(20, raw.length); r++) {
+          const row = raw[r].map((c) => String(c).toLowerCase().trim());
+          let matches = 0;
+          const tryMap = { rut: -1, nombre: -1, cargo: -1, sueldo: -1 };
+
+          for (const [key, kws] of Object.entries(keywords)) {
+            for (let c = 0; c < row.length; c++) {
+              if (kws.some((kw) => row[c].includes(kw))) {
+                if (tryMap[key] === -1) { tryMap[key] = c; matches++; }
+              }
+            }
+          }
+
+          if (matches >= 2) {
+            headerRow = r;
+            colMap = tryMap;
+            break;
+          }
+        }
+
+        if (headerRow === -1) {
+          colMap = { rut: 0, nombre: 1, sueldo: 2, cargo: 3 };
+          headerRow = 0;
+        }
+
+        const items = [];
+        for (let r = headerRow + 1; r < raw.length; r++) {
+          const row = raw[r];
+          const nombre = colMap.nombre !== -1 ? String(row[colMap.nombre] || '').trim() : '';
+          const rut = colMap.rut !== -1 ? String(row[colMap.rut] || '').trim() : '';
+          const sueldo = colMap.sueldo !== -1 ? parseFloat(row[colMap.sueldo]) : 0;
+          const cargo = colMap.cargo !== -1 ? String(row[colMap.cargo] || '').trim() : '';
+
+          if (!nombre && !rut) continue;
+
+          items.push({
+            rut: rut,
+            nombre: nombre,
+            cargo: cargo,
+            sueldo_base_mensual: isNaN(sueldo) ? 0 : sueldo,
+          });
+        }
+
+        resolve(items);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+};
+

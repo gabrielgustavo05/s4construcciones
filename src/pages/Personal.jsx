@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { clp } from '../lib/helpers';
+import { clp, parsePersonalExcel } from '../lib/helpers';
 import Modal from '../components/Modal';
 
 const EMPTY = {
@@ -20,6 +20,7 @@ export default function Personal() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [filtroCargo, setFiltroCargo] = useState('');
+  const [excelPreview, setExcelPreview] = useState(null);
 
   const fetchTrabajadores = useCallback(async () => {
     setLoading(true);
@@ -71,6 +72,48 @@ export default function Personal() {
 
   const filtrados = trabajadores.filter(t => !filtroCargo || t.cargo === filtroCargo);
 
+  const handleExcelFile = async (e) => {
+    try {
+      const items = await parsePersonalExcel(e.target.files[0]);
+      // Si el cargo viene vacio, se asigna "Maestro" por defecto
+      const previewItems = items.map(i => ({ ...i, cargo: i.cargo || 'Maestro' }));
+      setExcelPreview(previewItems);
+    } catch { alert('Error leyendo el archivo Excel'); }
+    e.target.value = '';
+  };
+
+  const confirmExcelImport = async () => {
+    // Filtrar los que ya existan por RUT para evitar duplicados
+    const rutsExistentes = trabajadores.map(t => t.rut).filter(Boolean);
+    const nuevos = excelPreview.filter(i => !i.rut || !rutsExistentes.includes(i.rut)).map(i => ({
+      ...i,
+      user_id: user.id
+    }));
+
+    if (nuevos.length === 0) {
+      alert('Todos los trabajadores del Excel ya existen en el sistema (RUT duplicado).');
+      setExcelPreview(null);
+      return;
+    }
+
+    const { error } = await supabase.from('trabajadores').insert(nuevos);
+    if (!error) {
+      setExcelPreview(null);
+      fetchTrabajadores();
+      if (nuevos.length < excelPreview.length) {
+        alert(`Se importaron ${nuevos.length} trabajadores. Se omitieron ${excelPreview.length - nuevos.length} por tener RUT ya registrado.`);
+      }
+    } else {
+      alert('Error importando: ' + error.message);
+    }
+  };
+
+  const updatePreviewCargo = (index, nuevoCargo) => {
+    const copy = [...excelPreview];
+    copy[index].cargo = nuevoCargo;
+    setExcelPreview(copy);
+  };
+
   if (loading) return <div className="loading-center"><div className="spinner" />Cargando personal...</div>;
 
   return (
@@ -80,8 +123,43 @@ export default function Personal() {
           <h2>Personal y Trabajadores</h2>
           <p>Base de datos general de trabajadores de la empresa</p>
         </div>
-        <button className="btn btn-a" onClick={() => { setForm(EMPTY); setShowModal(true); }}>+ Nuevo trabajador</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <label className="btn btn-s" style={{ cursor:'pointer' }}>
+            🤖 Importar Excel
+            <input type="file" accept=".xlsx,.xls,.csv" style={{ display:'none' }} onChange={handleExcelFile}/>
+          </label>
+          <button className="btn btn-a" onClick={() => { setForm(EMPTY); setShowModal(true); }}>+ Nuevo trabajador</button>
+        </div>
       </div>
+
+      {excelPreview && (
+        <div className="card" style={{ border:'1px solid var(--accent)', marginBottom: 14 }}>
+          <div className="card-title">📊 Vista previa — {excelPreview.length} trabajadores detectados</div>
+          <div className="excel-preview">
+            <table>
+              <thead><tr><th>RUT</th><th>Nombre completo</th><th>Cargo</th><th>Sueldo Mensual Base</th></tr></thead>
+              <tbody>
+                {excelPreview.map((t, idx) => (
+                  <tr key={idx}>
+                    <td className="ts tx">{t.rut || '-'}</td>
+                    <td><strong>{t.nombre}</strong></td>
+                    <td>
+                      <select value={t.cargo} onChange={(e) => updatePreviewCargo(idx, e.target.value)} style={{ padding: '4px', background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 4 }}>
+                        {CARGOS.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </td>
+                    <td className="mono">{clp(t.sueldo_base_mensual)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display:'flex', gap:8, padding:'12px 0 0' }}>
+            <button className="btn btn-a" onClick={confirmExcelImport}>✓ Importar {excelPreview.length} trabajadores</button>
+            <button className="btn btn-s" onClick={() => setExcelPreview(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
 
       <div className="pb">
         <div className="fg2" style={{ marginBottom: 14 }}>

@@ -97,12 +97,12 @@ html { font-size: 14px; }
   filter: blur(1px);
 }
 
-.css-logo.large { font-size: 85px; letter-spacing: -6px; }
-.css-logo.medium { font-size: 45px; letter-spacing: -3px; padding: 5px 10px; }
-
-body {
+.css-logo.large { font-size: 85px; letter-spacbody {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg);
+  background-image: linear-gradient(rgba(9, 9, 11, 0.9), rgba(9, 9, 11, 0.95)), url('/bg-dashboard.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   font-size: 13px;
@@ -112,7 +112,7 @@ body {
 /* ── SCROLLBAR ──────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
 
 /* ── LAYOUT ─────────────────────────── */
 .app-layout {
@@ -125,10 +125,24 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--bg);
+  /* El fondo general ya lo da el body, aquí es transparente o glass */
+  background: transparent;
 }
 
 /* ── SIDEBAR ─────────────────────────── */
+.sidebar {
+  width: var(--sb-width);
+  min-width: var(--sb-width);
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  z-index: 50;
+}�──────── */
 .sidebar {
   width: var(--sb-width);
   min-width: var(--sb-width);
