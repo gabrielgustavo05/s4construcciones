@@ -132,6 +132,7 @@ export default function Obras() {
       departamento: 'Eléctrico',
       tipo: 'Ejecución Eléctrica',
       obra_padre_id: obra.id,
+      estado: obra.estado,
       direccion: obra.direccion,
       cliente: obra.cliente,
       ito: obra.ito,

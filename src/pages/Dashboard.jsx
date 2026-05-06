@@ -27,7 +27,8 @@ export default function Dashboard() {
           compras ( cantidad, precio_unitario ),
           cotizaciones ( monto, estado ),
           subcontratos ( monto_contrato ),
-          estados_pago ( monto_bruto, retencion_pct, estado )
+          estados_pago ( monto_bruto, retencion_pct, estado ),
+          obra_padre_id, departamento
         `)
         .order('created_at', { ascending: false });
 
@@ -146,10 +147,14 @@ export default function Dashboard() {
   );
 
   const activas     = obras.filter((o) => o.estado === 'Activa' || o.estado === 'En Progreso');
-  const totalPres   = obras.reduce((s, o) => s + o.totalPres, 0);
-  const totalGasto  = obras.reduce((s, o) => s + o.totalCompras, 0);
+  
+  // Financieros: Solo sumar obras de Construcción (o sin padre) para evitar duplicidad de montos
+  const obrasPrincipales = obras.filter(o => !o.obra_padre_id || o.departamento === 'Construcción');
+  const totalPres   = obrasPrincipales.reduce((s, o) => s + o.totalPres, 0);
+  const totalGasto  = obrasPrincipales.reduce((s, o) => s + o.totalCompras, 0);
+  
   const avPromedio  = activas.length ? Math.round(activas.reduce((s, o) => s + (o.avance || 0), 0) / activas.length) : 0;
-  const totalSubs   = obras.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
+  const totalSubs   = obrasPrincipales.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
   const cotPend     = obras.reduce((s, o) => s + (o.cotizaciones || []).filter((c) => c.estado === 'Pendiente').length, 0);
 
   return (
