@@ -88,8 +88,8 @@ export default function ObraDetail() {
   }, [tab]);
 
   // ── Acciones genéricas ──
-  const deleteRow = async (table, rowId) => {
-    if (!confirm('¿Eliminar?')) return;
+  const deleteRow = async (table, rowId, noConfirm = false) => {
+    if (!noConfirm && !confirm('¿Eliminar?')) return;
     await supabase.from(table).delete().eq('id', rowId);
     fetchTab(tab);
   };
@@ -402,7 +402,7 @@ export default function ObraDetail() {
                           <td>
                             <div style={{ display: 'flex', gap: 4 }}>
                               <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
-                              <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button>
+                              <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id, true); }}>✕</button>
                             </div>
                           </td>
                         </tr>
@@ -441,7 +441,7 @@ export default function ObraDetail() {
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
                             <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
-                            <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button>
+                            <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id, true); }}>✕</button>
                           </div>
                         </td>
                       </tr>
