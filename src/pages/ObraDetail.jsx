@@ -40,7 +40,24 @@ export default function ObraDetail() {
 
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*').eq('id', id).single();
-    setObra(o);
+    if (o) {
+      setObra(o);
+      setEditForm(o);
+      
+      // SI ES OBRA PADRE: Sincronizar el valor de la partida 4.1 con el total del espejo eléctrico
+      const { data: espejos } = await supabase.from('obras').select('id').eq('obra_padre_id', id);
+      if (espejos && espejos.length > 0) {
+        const espejoId = espejos[0].id;
+        const { data: itemsElec } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', espejoId);
+        const { total: totalElec } = calcPresupuesto(itemsElec || [], 0, 0); // Solo costo directo
+        
+        // Actualizar la partida 4.1 en la obra actual
+        await supabase.from('presupuesto_items')
+          .update({ precio_unitario: totalElec, cantidad: 1 })
+          .eq('obra_id', id)
+          .eq('codigo', '4.1');
+      }
+    }
   }, [id]);
 
   const fetchTab = useCallback(async (tabIndex) => {
@@ -361,8 +378,12 @@ export default function ObraDetail() {
     if (field === 'cantidad' || field === 'precio_unitario') {
       finalVal = parseNum(value);
     }
-    await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
-    fetchTab(1);
+    const { error } = await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
+    if (error) {
+      alert('Error al guardar cambio: ' + error.message);
+    } else {
+      fetchTab(1);
+    }
   };
 
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
