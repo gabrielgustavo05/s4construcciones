@@ -622,7 +622,12 @@ export default function ObraDetail() {
                           />
                         </td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
-                          {clp(parseNum(p.cantidad) * parseNum(p.precio_unitario))}
+                          {(() => {
+                            const c = parseNum(p.cantidad);
+                            const u = parseNum(p.precio_unitario);
+                            const res = c * u;
+                            return clp(res);
+                          })()}
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
