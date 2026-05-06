@@ -36,7 +36,7 @@ export default function ObraDetail() {
 
 
   const fetchObra = useCallback(async () => {
-    const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
+    const { data: o } = await supabase.from('obras').select('*').eq('id', id).single();
     setObra(o);
   }, [id]);
 
@@ -138,7 +138,9 @@ export default function ObraDetail() {
 
   const handleUpdateObra = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('obras').update(editForm).eq('id', id);
+    // Limpiar el objeto de cualquier propiedad que no sea una columna real (evita error de Schema Cache)
+    const { obra_padre, espejos, presupuesto_items, compras, asistencia, cotizaciones, subcontratos, hitos, estados_pago, ...payload } = editForm;
+    const { error } = await supabase.from('obras').update(payload).eq('id', id);
     if (!error) { setShowEditObra(false); fetchObra(); }
     else alert('Error: ' + error.message);
   };
@@ -356,7 +358,7 @@ export default function ObraDetail() {
                 <button className="btn btn-s btn-sm" onClick={() => { setEditForm(obra); setShowEditObra(true); }}>✏️ Editar</button>
               </div>
               <div style={{ marginTop: 14 }}>
-                {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° OC / Contrato',obra.n_contrato], ...(obra.obra_padre ? [['Obra Asociada', obra.obra_padre.nombre]] : [])].map(([k,v]) => (
+                {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° OC / Contrato',obra.n_contrato]].map(([k,v]) => (
                   <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v||'-'}</span></div>
                 ))}
               </div>
