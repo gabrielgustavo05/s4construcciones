@@ -49,7 +49,11 @@ export default function ObraDetail() {
     }
 
     const { data: rows } = await query;
-    setData(d => ({ ...d, [table === 'presupuesto_items' ? 'presupuesto' : table]: rows || [] }));
+    let sortedRows = rows || [];
+    if (table === 'presupuesto_items') {
+      sortedRows.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '', undefined, { numeric: true, sensitivity: 'base' }));
+    }
+    setData(d => ({ ...d, [table === 'presupuesto_items' ? 'presupuesto' : table]: sortedRows }));
 
     if (table === 'asistencia') {
       const { data: tr } = await supabase.from('trabajadores').select('*').order('nombre');
