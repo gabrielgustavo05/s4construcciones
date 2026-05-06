@@ -30,6 +30,10 @@ export default function DptoElectrico() {
   const [filtroTipo,   setFiltroTipo]   = useState('');
   const [obrasMadre, setObrasMadre] = useState([]);
 
+  const [deletingId, setDeletingId] = useState(null);
+  const [deletePass, setDeletePass] = useState('');
+  const ADMIN_DELETE_KEY = 'S4Admin2024'; // Clave maestra para eliminación
+
   const fetchObras = useCallback(async () => {
     const [{ data }, { data: obrasConstruccion }] = await Promise.all([
       supabase
@@ -80,10 +84,19 @@ export default function DptoElectrico() {
     else alert('Error: ' + error.message);
   };
 
-  const handleDelete = async (e, id) => {
+  const handleDelete = (e, id) => {
     e.stopPropagation();
-    if (!confirm('¿Eliminar esta obra y todos sus datos?')) return;
-    await supabase.from('obras').delete().eq('id', id);
+    setDeletingId(id);
+    setDeletePass('');
+  };
+
+  const confirmDelete = async () => {
+    if (deletePass !== ADMIN_DELETE_KEY) {
+      alert('Clave de gerencia incorrecta');
+      return;
+    }
+    await supabase.from('obras').delete().eq('id', deletingId);
+    setDeletingId(null);
     fetchObras();
   };
 
@@ -266,6 +279,32 @@ export default function DptoElectrico() {
               <button type="submit" className="btn btn-a">Guardar proyecto</button>
             </div>
           </form>
+        </Modal>
+      )}
+      {/* Modal Confirmar Eliminación */}
+      {deletingId && (
+        <Modal title="⚠️ Confirmar Eliminación" onClose={() => setDeletingId(null)}>
+          <div style={{ textAlign: 'center' }}>
+            <p>Estás a punto de eliminar el proyecto eléctrico y <strong>todos sus registros asociados</strong>.</p>
+            <p style={{ color: 'var(--red)', fontWeight: 700, marginBottom: 20 }}>Esta acción es irreversible.</p>
+            
+            <div className="form-group">
+              <label>CLAVE DE GERENCIA</label>
+              <input 
+                type="password" 
+                value={deletePass} 
+                onChange={(e) => setDeletePass(e.target.value)} 
+                placeholder="Ingrese clave para autorizar"
+                style={{ textAlign: 'center', fontSize: 18, letterSpacing: 4 }}
+                autoFocus
+              />
+            </div>
+            
+            <div className="modal-actions" style={{ marginTop: 20 }}>
+              <button className="btn btn-s" onClick={() => setDeletingId(null)}>Cancelar</button>
+              <button className="btn btn-d" onClick={confirmDelete}>Eliminar Definitivamente</button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

@@ -25,25 +25,35 @@ export default function Obras() {
   const [form, setForm] = useState(EMPTY);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroTipo,   setFiltroTipo]   = useState('');
+  
+  const [deletingId, setDeletingId] = useState(null);
+  const [deletePass, setDeletePass] = useState('');
+  const ADMIN_DELETE_KEY = 'S4Admin2024'; // Clave maestra para eliminación
 
   const fetchObras = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('obras')
-      .select(`
-        id, nombre, tipo, direccion, estado, avance, responsable, n_contrato,
-        gastos_generales_pct, utilidad_pct, fecha_fin,
-        presupuesto_items ( cantidad, precio_unitario ),
-        compras ( cantidad, precio_unitario ),
-        asistencia ( total_pago )
-      `)
-      .eq('departamento', 'Construcción')
-      .order('created_at', { ascending: false });
+    const [{ data: constructionData }, { data: electricData }] = await Promise.all([
+      supabase
+        .from('obras')
+        .select(`
+          id, nombre, tipo, direccion, estado, avance, responsable, n_contrato,
+          cliente, ito, fecha_inicio, fecha_fin,
+          gastos_generales_pct, utilidad_pct,
+          presupuesto_items ( cantidad, precio_unitario ),
+          compras ( cantidad, precio_unitario ),
+          asistencia ( total_pago )
+        `)
+        .eq('departamento', 'Construcción')
+        .order('created_at', { ascending: false }),
+      supabase.from('obras').select('obra_padre_id').eq('departamento', 'Eléctrico').not('obra_padre_id', 'is', null)
+    ]);
 
-    if (!error) {
-      setObras(data.map((o) => ({
+    if (constructionData) {
+      const mirroredIds = new Set(electricData?.map(e => e.obra_padre_id) || []);
+      setObras(constructionData.map((o) => ({
         ...o,
         totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).total,
         totalCompras: calcCompras(o.compras || []) + calcAsistencia(o.asistencia || []),
+        hasMirror: mirroredIds.has(o.id)
       })));
     }
     setLoading(false);
@@ -66,15 +76,84 @@ export default function Obras() {
       fecha_inicio:         form.fecha_inicio || null,
       fecha_fin:            form.fecha_fin    || null,
     };
-    const { error } = await supabase.from('obras').insert([payload]);
-    if (!error) { setShowModal(false); setForm(EMPTY); fetchObras(); }
-    else alert('Error: ' + error.message);
+    const { data: mainObra, error } = await supabase.from('obras').insert([payload]).select().single();
+    if (!error && mainObra) {
+      // 1. Crear Obra Espejo Eléctrica
+      const electricalPayload = {
+        ...payload,
+        nombre: `${payload.nombre} (ELÉCTRICO)`,
+        departamento: 'Eléctrico',
+        tipo: 'Ejecución Eléctrica',
+        obra_padre_id: mainObra.id
+      };
+      await supabase.from('obras').insert([electricalPayload]);
+
+      // 2. Crear Partida Eléctrica base en la obra de construcción
+      const defaultItem = {
+        obra_id: mainObra.id,
+        codigo: '4.1',
+        descripcion: 'Instalación Eléctrica (Detalle en Depto. Eléctrico)',
+        unidad: 'GL',
+        cantidad: 1,
+        precio_unitario: 0
+      };
+      await supabase.from('presupuesto_items').insert([defaultItem]);
+
+      setShowModal(false); 
+      setForm(EMPTY); 
+      fetchObras(); 
+    }
+    else alert('Error: ' + error?.message);
   };
 
-  const handleDelete = async (e, id) => {
+  const handleDelete = (e, id) => {
     e.stopPropagation();
-    if (!confirm('¿Eliminar esta obra y todos sus datos?')) return;
-    await supabase.from('obras').delete().eq('id', id);
+    setDeletingId(id);
+    setDeletePass('');
+  };
+
+  const confirmDelete = async () => {
+    if (deletePass !== ADMIN_DELETE_KEY) {
+      alert('Clave de gerencia incorrecta');
+      return;
+    }
+    await supabase.from('obras').delete().eq('id', deletingId);
+    setDeletingId(null);
+    fetchObras();
+  };
+
+  const syncMirror = async (e, obra) => {
+    e.stopPropagation();
+    if (!confirm(`¿Crear espejo eléctrico para "${obra.nombre}"?`)) return;
+    
+    // 1. Crear Espejo
+    const { data: mirror, error: err1 } = await supabase.from('obras').insert([{
+      nombre: `${obra.nombre} (ELÉCTRICO)`,
+      departamento: 'Eléctrico',
+      tipo: 'Ejecución Eléctrica',
+      obra_padre_id: obra.id,
+      direccion: obra.direccion,
+      cliente: obra.cliente,
+      ito: obra.ito,
+      responsable: obra.responsable,
+      fecha_inicio: obra.fecha_inicio,
+      fecha_fin: obra.fecha_fin
+    }]).select().single();
+
+    if (err1) return alert('Error al crear espejo: ' + err1.message);
+
+    // 2. Crear Partida Base en la obra de construcción
+    const { error: err2 } = await supabase.from('presupuesto_items').insert([{
+      obra_id: obra.id,
+      codigo: '4.1',
+      descripcion: 'Instalación Eléctrica (Detalle en Depto. Eléctrico)',
+      unidad: 'GL',
+      cantidad: 1,
+      precio_unitario: 0
+    }]);
+
+    if (err2) alert('Error al crear partida: ' + err2.message);
+    
     fetchObras();
   };
 
@@ -89,10 +168,10 @@ export default function Obras() {
     <div>
       <div className="ph">
         <div>
-          <h2>Obras</h2>
-          <p>Gestión completa del portafolio de proyectos</p>
+          <h2>Listado de Obras</h2>
+          <p>Control de presupuestos y avance por proyecto</p>
         </div>
-        <button className="btn btn-a" onClick={() => setShowModal(true)}>+ Nueva obra</button>
+        <button className="btn btn-a" onClick={() => setShowModal(true)}>+ Nueva obra de construcción</button>
       </div>
 
       <div className="pb">
@@ -138,6 +217,23 @@ export default function Obras() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Badge estado={o.estado} />
+                  {!o.hasMirror && (
+                    <button 
+                      className="btn btn-s btn-sm" 
+                      onClick={(e) => syncMirror(e, o)}
+                      title="Sincronizar con Depto. Eléctrico"
+                      style={{ 
+                        background: 'rgba(52, 211, 153, 0.1)', 
+                        border: '1px solid var(--green)', 
+                        color: 'var(--green)',
+                        fontSize: '9px',
+                        padding: '2px 6px',
+                        fontWeight: 700
+                      }}
+                    >
+                      ⚡ ESPEJAR
+                    </button>
+                  )}
                   <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/obra/${o.id}`); }}>
                     Ver →
                   </button>
@@ -248,6 +344,32 @@ export default function Obras() {
               <button type="submit" className="btn btn-a">Guardar obra</button>
             </div>
           </form>
+        </Modal>
+      )}
+      {/* Modal Confirmar Eliminación */}
+      {deletingId && (
+        <Modal title="⚠️ Confirmar Eliminación" onClose={() => setDeletingId(null)}>
+          <div style={{ textAlign: 'center' }}>
+            <p>Estás a punto de eliminar la obra y <strong>todos sus registros asociados</strong> (presupuesto, compras, asistencia, etc.).</p>
+            <p style={{ color: 'var(--red)', fontWeight: 700, marginBottom: 20 }}>Esta acción es irreversible.</p>
+            
+            <div className="form-group">
+              <label>CLAVE DE GERENCIA</label>
+              <input 
+                type="password" 
+                value={deletePass} 
+                onChange={(e) => setDeletePass(e.target.value)} 
+                placeholder="Ingrese clave para autorizar"
+                style={{ textAlign: 'center', fontSize: 18, letterSpacing: 4 }}
+                autoFocus
+              />
+            </div>
+            
+            <div className="modal-actions" style={{ marginTop: 20 }}>
+              <button className="btn btn-s" onClick={() => setDeletingId(null)}>Cancelar</button>
+              <button className="btn btn-d" onClick={confirmDelete}>Eliminar Definitivamente</button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

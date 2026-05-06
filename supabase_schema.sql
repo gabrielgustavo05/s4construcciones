@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS asistencia (
     horas_extra NUMERIC DEFAULT 0,
     bono_trato NUMERIC DEFAULT 0,
     descuentos NUMERIC DEFAULT 0,
+    sueldo_base_mensual NUMERIC DEFAULT 0,
     total_pago NUMERIC DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

@@ -19,7 +19,7 @@ export default function ObraDetail() {
   const [editForm, setEditForm] = useState({});
 
   const [trabajadores, setTrabajadores] = useState([]);
-  const [newAsistencia, setNewAsistencia] = useState({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0 });
+  const [newAsistencia, setNewAsistencia] = useState({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
 
   const [materialesGlobales, setMaterialesGlobales] = useState([]);
   const [showResumenCompras, setShowResumenCompras] = useState(false);
@@ -28,6 +28,12 @@ export default function ObraDetail() {
   const [selectedPartida, setSelectedPartida] = useState(null);
   const [editPartidaForm, setEditPartidaForm] = useState(null);
   const [newMaterial, setNewMaterial] = useState({ descripcion:'', unidad:'UN', cantidad:'' });
+  
+  const [newCotizacion, setNewCotizacion] = useState({ item: '', proveedor: '', monto: '', forma_pago: 'Contado', estado: 'Pendiente', notas: '' });
+  const [newSubcontrato, setNewSubcontrato] = useState({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
+  const [newHito, setNewHito] = useState({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
+  const [newEstadoPago, setNewEstadoPago] = useState({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+
 
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
@@ -37,7 +43,24 @@ export default function ObraDetail() {
   const fetchTab = useCallback(async (tabIndex) => {
     setLoading(true);
     const tables = ['presupuesto_items','asistencia','compras','cotizaciones','subcontratos','hitos','estados_pago'];
-    if (tabIndex === 0) { setLoading(false); return; }
+    
+    // Si es Resumen (Tab 0), traer gasto real del espejo eléctrico si existe
+    if (tabIndex === 0) {
+      if (obra?.departamento === 'Construcción') {
+        const { data: espejo } = await supabase.from('obras').select('id').eq('obra_padre_id', id).eq('departamento', 'Eléctrico').single();
+        if (espejo) {
+          const [{ data: asisEsp }, { data: compEsp }] = await Promise.all([
+            supabase.from('asistencia').select('total_pago').eq('obra_id', espejo.id),
+            supabase.from('compras').select('cantidad, precio_unitario').eq('obra_id', espejo.id)
+          ]);
+          const gastoEsp = (asisEsp?.reduce((s,a)=>s+(a.total_pago||0),0)||0) + (compEsp?.reduce((s,c)=>s+(c.cantidad*c.precio_unitario||0),0)||0);
+          setData(d => ({ ...d, gasto_espejo: gastoEsp }));
+        }
+      }
+      setLoading(false); 
+      return; 
+    }
+
     const table = tables[tabIndex - 1];
     
     let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
@@ -50,6 +73,23 @@ export default function ObraDetail() {
 
     const { data: rows } = await query;
     let sortedRows = rows || [];
+    
+    // Si estamos cargando presupuesto de obra de construcción, sincronizar con detalle eléctrico
+    if (table === 'presupuesto_items' && obra?.departamento === 'Construcción') {
+      const { data: espejo } = await supabase.from('obras').select('id').eq('obra_padre_id', id).eq('departamento', 'Eléctrico').single();
+      if (espejo) {
+        const { data: itemsEsp } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', espejo.id);
+        const totalEsp = itemsEsp?.reduce((s, i) => s + (i.cantidad * i.precio_unitario || 0), 0) || 0;
+        
+        // Buscar partida eléctrica (ej: 4.1 o descripción)
+        const idxElec = sortedRows.findIndex(p => p.codigo === '4.1' || p.descripcion.toLowerCase().includes('eléctric'));
+        if (idxElec !== -1 && sortedRows[idxElec].precio_unitario !== totalEsp) {
+          await supabase.from('presupuesto_items').update({ precio_unitario: totalEsp }).eq('id', sortedRows[idxElec].id);
+          sortedRows[idxElec].precio_unitario = totalEsp;
+        }
+      }
+    }
+
     if (table === 'presupuesto_items') {
       sortedRows.sort((a, b) => (a.codigo || '').trim().localeCompare((b.codigo || '').trim(), undefined, { numeric: true, sensitivity: 'base' }));
     }
@@ -60,20 +100,18 @@ export default function ObraDetail() {
       setTrabajadores(tr || []);
     }
 
-    // Al cargar presupuesto, también traer compras para cotejo de sobrecompra
     if (table === 'presupuesto_items') {
       const { data: cmp } = await supabase.from('compras').select('presupuesto_item_id, cantidad, descripcion').eq('obra_id', id);
       setData(d => ({ ...d, compras_cotejo: cmp || [] }));
     }
 
-    // Al cargar compras, también traer partidas del presupuesto para el dropdown
     if (table === 'compras') {
       const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad').eq('obra_id', id).order('created_at', { ascending: true });
       setPresupuestoItems(items || []);
     }
 
     setLoading(false);
-  }, [id]);
+  }, [id, obra]);
 
   useEffect(() => { fetchObra(); }, [fetchObra]);
   useEffect(() => { fetchTab(tab); }, [tab, fetchTab]);
@@ -159,7 +197,14 @@ export default function ObraDetail() {
     const payload = { ...newCompra, obra_id: id, cantidad: Number(newCompra.cantidad), precio_unitario: Number(newCompra.precio_unitario) };
     if (!payload.presupuesto_item_id) delete payload.presupuesto_item_id;
     await supabase.from('compras').insert([payload]);
-    setNewCompra({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today(), presupuesto_item_id: '' });
+    // Mantener Proveedor, N° Documento y Fecha para facilitar ingresos múltiples de una misma factura
+    setNewCompra({ 
+      ...newCompra, 
+      descripcion: '', 
+      cantidad: '', 
+      precio_unitario: '', 
+      presupuesto_item_id: '' 
+    });
     fetchTab(3);
   };
 
@@ -190,7 +235,7 @@ export default function ObraDetail() {
     const bono = Number(newAsistencia.bono_trato);
     const horas = Number(newAsistencia.horas_extra);
     const desc = Number(newAsistencia.descuentos);
-    const sueldoMensual = Number(tr.sueldo_base_mensual);
+    const sueldoMensual = Number(newAsistencia.sueldo_base_mensual);
     
     // Fórmula Legal Chilena (Mensual, 42 horas semanales)
     // 1. Valor por día trabajado (Mes comercial = 30 días)
@@ -213,9 +258,38 @@ export default function ObraDetail() {
     };
     
     await supabase.from('asistencia').insert([payload]);
-    setNewAsistencia({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0 });
+    setNewAsistencia({ ...newAsistencia, trabajador_id: '', dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
     fetchTab(2); // tab 2 es Asistencia
   };
+
+  const addCotizacion = async (e) => {
+    e.preventDefault();
+    await supabase.from('cotizaciones').insert([{ ...newCotizacion, obra_id: id, monto: Number(newCotizacion.monto) }]);
+    setNewCotizacion({ item: '', proveedor: '', monto: '', forma_pago: 'Contado', estado: 'Pendiente', notas: '' });
+    fetchTab(4);
+  };
+
+  const addSubcontrato = async (e) => {
+    e.preventDefault();
+    await supabase.from('subcontratos').insert([{ ...newSubcontrato, obra_id: id, monto_contrato: Number(newSubcontrato.monto_contrato) }]);
+    setNewSubcontrato({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
+    fetchTab(5);
+  };
+
+  const addHito = async (e) => {
+    e.preventDefault();
+    await supabase.from('hitos').insert([{ ...newHito, obra_id: id, avance: Number(newHito.avance) }]);
+    setNewHito({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
+    fetchTab(6);
+  };
+
+  const addEstadoPago = async (e) => {
+    e.preventDefault();
+    await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: Number(newEstadoPago.monto_bruto) }]);
+    setNewEstadoPago({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+    fetchTab(7);
+  };
+
 
   const updatePct = async (field, value) => {
     const num = Number(value);
@@ -237,7 +311,7 @@ export default function ObraDetail() {
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct);
-  const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia);
+  const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia) + (data.gasto_espejo || 0);
 
   return (
     <div className="detail-overlay">
@@ -516,11 +590,16 @@ export default function ObraDetail() {
             <form onSubmit={addAsistencia} className="form-grid" style={{ alignItems:'flex-end' }}>
               <div className="form-group">
                 <label>Trabajador</label>
-                <select required value={newAsistencia.trabajador_id} onChange={e => setNewAsistencia({...newAsistencia, trabajador_id: e.target.value})}>
+                <select required value={newAsistencia.trabajador_id} onChange={e => {
+                  const tid = e.target.value;
+                  const tr = trabajadores.find(t => t.id === tid);
+                  setNewAsistencia({...newAsistencia, trabajador_id: tid, sueldo_base_mensual: tr ? tr.sueldo_base_mensual : ''});
+                }}>
                   <option value="">Seleccione...</option>
                   {trabajadores.map(t => <option key={t.id} value={t.id}>{t.nombre} ({t.cargo})</option>)}
                 </select>
               </div>
+              <div className="form-group"><label>Sueldo Mensual ($)</label><input type="number" required value={newAsistencia.sueldo_base_mensual} onChange={e => setNewAsistencia({...newAsistencia, sueldo_base_mensual: e.target.value})} /></div>
               <div className="form-group"><label>Fecha</label><input type="date" required value={newAsistencia.fecha} onChange={e => setNewAsistencia({...newAsistencia, fecha: e.target.value})} /></div>
               <div className="form-group"><label>Días Trab.</label><input type="number" step="0.5" min="0" required value={newAsistencia.dias_trabajados} onChange={e => setNewAsistencia({...newAsistencia, dias_trabajados: e.target.value})} /></div>
               <div className="form-group"><label>Horas Extras</label><input type="number" step="0.5" min="0" required value={newAsistencia.horas_extra} onChange={e => setNewAsistencia({...newAsistencia, horas_extra: e.target.value})} /></div>
@@ -648,6 +727,23 @@ export default function ObraDetail() {
       {/* ── TAB 4: COTIZACIONES ── */}
       {tab === 4 && (
         <div className="tab-panel active">
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-title">📝 Agregar Cotización</div>
+            <form onSubmit={addCotizacion} className="form-grid" style={{ alignItems:'flex-end' }}>
+              <div className="form-group"><label>Ítem / Descripción</label><input required value={newCotizacion.item} onChange={e=>setNewCotizacion({...newCotizacion,item:e.target.value})} /></div>
+              <div className="form-group"><label>Proveedor</label><input required value={newCotizacion.proveedor} onChange={e=>setNewCotizacion({...newCotizacion,proveedor:e.target.value})} /></div>
+              <div className="form-group"><label>Monto ($)</label><input type="number" required value={newCotizacion.monto} onChange={e=>setNewCotizacion({...newCotizacion,monto:e.target.value})} /></div>
+              <div className="form-group">
+                <label>Estado</label>
+                <select value={newCotizacion.estado} onChange={e=>setNewCotizacion({...newCotizacion,estado:e.target.value})}>
+                  <option>Pendiente</option>
+                  <option>Aprobado</option>
+                  <option>Rechazado</option>
+                </select>
+              </div>
+              <button className="btn btn-a">+</button>
+            </form>
+          </div>
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
               <table>
@@ -676,6 +772,16 @@ export default function ObraDetail() {
       {/* ── TAB 5: SUBCONTRATOS ── */}
       {tab === 5 && (
         <div className="tab-panel active">
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-title">🤝 Registrar Subcontrato</div>
+            <form onSubmit={addSubcontrato} className="form-grid" style={{ alignItems:'flex-end' }}>
+              <div className="form-group"><label>Empresa</label><input required value={newSubcontrato.empresa} onChange={e=>setNewSubcontrato({...newSubcontrato,empresa:e.target.value})} /></div>
+              <div className="form-group"><label>Especialidad</label><input required value={newSubcontrato.especialidad} onChange={e=>setNewSubcontrato({...newSubcontrato,especialidad:e.target.value})} /></div>
+              <div className="form-group"><label>Monto Contrato ($)</label><input type="number" required value={newSubcontrato.monto_contrato} onChange={e=>setNewSubcontrato({...newSubcontrato,monto_contrato:e.target.value})} /></div>
+              <div className="form-group"><label>Retención (%)</label><input type="number" value={newSubcontrato.retencion_pct} onChange={e=>setNewSubcontrato({...newSubcontrato,retencion_pct:e.target.value})} /></div>
+              <button className="btn btn-a">+</button>
+            </form>
+          </div>
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
               <table>
@@ -709,6 +815,24 @@ export default function ObraDetail() {
       {/* ── TAB 6: HITOS ── */}
       {tab === 6 && (
         <div className="tab-panel active">
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-title">📅 Agregar Hito / Tarea</div>
+            <form onSubmit={addHito} className="form-grid" style={{ alignItems:'flex-end' }}>
+              <div className="form-group"><label>Nombre del Hito</label><input required value={newHito.nombre} onChange={e=>setNewHito({...newHito,nombre:e.target.value})} /></div>
+              <div className="form-group"><label>Inicio</label><input type="date" value={newHito.fecha_inicio_plan} onChange={e=>setNewHito({...newHito,fecha_inicio_plan:e.target.value})} /></div>
+              <div className="form-group"><label>Fin Plan</label><input type="date" value={newHito.fecha_fin_plan} onChange={e=>setNewHito({...newHito,fecha_fin_plan:e.target.value})} /></div>
+              <div className="form-group">
+                <label>Estado</label>
+                <select value={newHito.estado} onChange={e=>setNewHito({...newHito,estado:e.target.value})}>
+                  <option>Pendiente</option>
+                  <option>En curso</option>
+                  <option>Completado</option>
+                  <option>Atrasado</option>
+                </select>
+              </div>
+              <button className="btn btn-a">+</button>
+            </form>
+          </div>
           {data.hitos.map(h => {
             const col = h.estado==='Completado'?'var(--green)':h.estado==='En curso'?'var(--blue)':h.estado==='Atrasado'?'var(--red)':'var(--bg5)';
             return (
@@ -730,6 +854,16 @@ export default function ObraDetail() {
       {/* ── TAB 7: ESTADOS DE PAGO ── */}
       {tab === 7 && (
         <div className="tab-panel active">
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-title">💰 Emitir Estado de Pago</div>
+            <form onSubmit={addEstadoPago} className="form-grid" style={{ alignItems:'flex-end' }}>
+              <div className="form-group"><label>EPO N°</label><input required value={newEstadoPago.numero} onChange={e=>setNewEstadoPago({...newEstadoPago,numero:e.target.value})} /></div>
+              <div className="form-group"><label>Descripción</label><input required value={newEstadoPago.descripcion} onChange={e=>setNewEstadoPago({...newEstadoPago,descripcion:e.target.value})} /></div>
+              <div className="form-group"><label>Monto Bruto ($)</label><input type="number" required value={newEstadoPago.monto_bruto} onChange={e=>setNewEstadoPago({...newEstadoPago,monto_bruto:e.target.value})} /></div>
+              <div className="form-group"><label>Retención (%)</label><input type="number" value={newEstadoPago.retencion_pct} onChange={e=>setNewEstadoPago({...newEstadoPago,retencion_pct:e.target.value})} /></div>
+              <button className="btn btn-a">+</button>
+            </form>
+          </div>
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
               <table>
