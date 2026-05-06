@@ -417,7 +417,7 @@ export default function ObraDetail() {
                         <td className="mono" style={{ textAlign:'right' }}>
                           <input 
                             type="number" 
-                            defaultValue={p.cantidad} 
+                            defaultValue={p.cantidad === 0 ? '' : p.cantidad} 
                             onBlur={(e) => updateItemField(p.id, 'cantidad', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
@@ -431,7 +431,7 @@ export default function ObraDetail() {
                         <td className="mono" style={{ textAlign:'right' }}>
                           <input 
                             type="number" 
-                            defaultValue={p.precio_unitario} 
+                            defaultValue={p.precio_unitario === 0 ? '' : p.precio_unitario} 
                             onBlur={(e) => updateItemField(p.id, 'precio_unitario', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
@@ -878,11 +878,11 @@ export default function ObraDetail() {
             </div>
             <div className="form-group">
               <label>Cantidad</label>
-              <input type="number" step="0.01" required value={editPartidaForm.cantidad} onChange={e=>setEditPartidaForm({...editPartidaForm,cantidad:e.target.value})} />
+              <input type="number" step="0.01" required value={editPartidaForm.cantidad === 0 ? '' : editPartidaForm.cantidad} onChange={e=>setEditPartidaForm({...editPartidaForm,cantidad:e.target.value})} />
             </div>
             <div className="form-group">
               <label>P. Unitario</label>
-              <input type="number" step="0.01" required value={editPartidaForm.precio_unitario} onChange={e=>setEditPartidaForm({...editPartidaForm,precio_unitario:e.target.value})} />
+              <input type="number" step="0.01" required value={editPartidaForm.precio_unitario === 0 ? '' : editPartidaForm.precio_unitario} onChange={e=>setEditPartidaForm({...editPartidaForm,precio_unitario:e.target.value})} />
             </div>
             <div className="modal-actions">
               <button type="button" className="btn btn-s" onClick={() => setEditPartidaForm(null)}>Cancelar</button>
