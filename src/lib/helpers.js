@@ -75,18 +75,26 @@ export const parseExcel = async (file) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-// Parser de números en formato chileno (1.234.567 o 1.234.567,50)
+// Parser de números inteligente (Soporta formato Chileno y Americano)
 export const parseNum = (v) => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
   let s = String(v).trim().replace(/[$\s%]/g, '');
-  // Si tiene puntos de miles y coma decimal (estilo chileno: 1.234,56)
-  if (s.includes('.') && s.includes(',')) {
+  
+  if (!s) return 0;
+
+  // Detectar cuál es el separador decimal (el último punto o coma)
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  
+  if (lastComma > lastDot) {
+    // Formato Chileno: 1.234,56 -> quitar puntos, cambiar coma por punto
     s = s.replace(/\./g, '').replace(',', '.');
-  } else if (s.includes(',')) {
-    // Si solo tiene coma (estilo: 1234,56)
-    s = s.replace(',', '.');
+  } else if (lastDot > lastComma) {
+    // Formato Americano: 1,234.56 -> quitar comas
+    s = s.replace(/,/g, '');
   }
+
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
