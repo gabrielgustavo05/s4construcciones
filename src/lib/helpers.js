@@ -82,6 +82,9 @@ export const cleanNum = (val) => {
   if (typeof val === 'number') return val;
   let s = String(val).trim();
   
+  // Eliminar símbolos de moneda, espacios y otros caracteres no numéricos comunes al inicio/final
+  s = s.replace(/[$\s]/g, '');
+  
   // Caso 1: Tiene coma. La coma es el decimal. Borramos los puntos (miles).
   if (s.includes(',')) {
     s = s.replace(/\./g, '').replace(',', '.');
