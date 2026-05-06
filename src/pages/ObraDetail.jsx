@@ -11,7 +11,7 @@ export default function ObraDetail() {
   const { id } = useParams();
   const [obra, setObra] = useState(null);
   const [tab, setTab] = useState(0);
-  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [] });
+  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [] });
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [excelPreview, setExcelPreview] = useState(null);
@@ -25,6 +25,7 @@ export default function ObraDetail() {
 
   const [materialesGlobales, setMaterialesGlobales] = useState([]);
   const [showResumenCompras, setShowResumenCompras] = useState(false);
+  const [presupuestoItems, setPresupuestoItems] = useState([]);
 
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
@@ -48,6 +49,18 @@ export default function ObraDetail() {
     if (table === 'asistencia') {
       const { data: tr } = await supabase.from('trabajadores').select('*').order('nombre');
       setTrabajadores(tr || []);
+    }
+
+    // Al cargar presupuesto, también traer compras para cotejo de sobrecompra
+    if (table === 'presupuesto_items') {
+      const { data: cmp } = await supabase.from('compras').select('presupuesto_item_id, cantidad').eq('obra_id', id);
+      setData(d => ({ ...d, compras_cotejo: cmp || [] }));
+    }
+
+    // Al cargar compras, también traer partidas del presupuesto para el dropdown
+    if (table === 'compras') {
+      const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad').eq('obra_id', id).order('created_at', { ascending: true });
+      setPresupuestoItems(items || []);
     }
 
     setLoading(false);
@@ -109,12 +122,14 @@ export default function ObraDetail() {
   };
 
   // ── Agregar compra ──
-  const [newCompra, setNewCompra] = useState({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today() });
+  const [newCompra, setNewCompra] = useState({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today(), presupuesto_item_id: '' });
   const addCompra = async (e) => {
     e.preventDefault();
-    await supabase.from('compras').insert([{ ...newCompra, obra_id: id, cantidad: Number(newCompra.cantidad), precio_unitario: Number(newCompra.precio_unitario) }]);
-    setNewCompra({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today() });
-    fetchTab(3); // tab 3 es Compras
+    const payload = { ...newCompra, obra_id: id, cantidad: Number(newCompra.cantidad), precio_unitario: Number(newCompra.precio_unitario) };
+    if (!payload.presupuesto_item_id) delete payload.presupuesto_item_id;
+    await supabase.from('compras').insert([payload]);
+    setNewCompra({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today(), presupuesto_item_id: '' });
+    fetchTab(3);
   };
 
   const addAsistencia = async (e) => {
@@ -304,30 +319,38 @@ export default function ObraDetail() {
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
               <table>
-                <thead><tr><th>N°</th><th>Código</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cantidad</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th></th></tr></thead>
+                <thead><tr><th>N°</th><th>Código</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cant. Pres.</th><th style={{ textAlign:'right' }}>Comprado</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th></th></tr></thead>
                 <tbody>
                   {data.presupuesto.length === 0 ? (
                     <tr><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Agrega manualmente o importa desde Excel.</td></tr>
                   ) : data.presupuesto.map((p,i) => {
                     const tot = p.cantidad * p.precio_unitario;
                     const isTitle = (p.cantidad === 0 && p.precio_unitario === 0 && p.codigo);
+                    // Calcular sobrecompra
+                    const cantComprada = data.compras_cotejo
+                      .filter(c => c.presupuesto_item_id === p.id)
+                      .reduce((s, c) => s + (c.cantidad || 0), 0);
+                    const sobrecompra = !isTitle && p.cantidad > 0 && cantComprada > p.cantidad;
                     if (isTitle) {
                       return (
                         <tr key={p.id} style={{ background: 'var(--bg3)' }}>
                           <td className="ts tx">{i+1}</td>
                           <td className="ts" style={{ color: 'var(--accent)', fontWeight: 800 }}>{p.codigo}</td>
-                          <td colSpan="5"><strong>{p.descripcion}</strong></td>
+                          <td colSpan="6"><strong>{p.descripcion}</strong></td>
                           <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('presupuesto_items', p.id)}>✕</button></td>
                         </tr>
                       );
                     }
                     return (
-                      <tr key={p.id}>
+                      <tr key={p.id} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined }}>
                         <td className="ts tx">{i+1}</td>
                         <td className="ts tx">{p.codigo||'-'}</td>
                         <td><strong>{p.descripcion}</strong></td>
                         <td><span style={{ background:'var(--bg4)',padding:'2px 6px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{p.unidad}</span></td>
                         <td className="mono" style={{ textAlign:'right' }}>{p.cantidad}</td>
+                        <td className="mono" style={{ textAlign:'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
+                          {cantComprada > 0 ? cantComprada : '-'}{sobrecompra && ` ⚠️`}
+                        </td>
                         <td className="mono" style={{ textAlign:'right' }}>{clp(p.precio_unitario)}</td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
                         <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('presupuesto_items', p.id)}>✕</button></td>
@@ -438,7 +461,15 @@ export default function ObraDetail() {
               <div className="form-group" style={{ margin:0 }}><label>P. Unit</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e=>setNewCompra({...newCompra,precio_unitario:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>Proveedor</label><input value={newCompra.proveedor} onChange={e=>setNewCompra({...newCompra,proveedor:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>N° Doc</label><input value={newCompra.n_documento} onChange={e=>setNewCompra({...newCompra,n_documento:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>Fecha</label><input type="date" value={newCompra.fecha} onChange={e=>setNewCompra({...newCompra,fecha:e.target.value})}/></div>
+              <div className="form-group" style={{ margin:0 }}>
+                <label>Partida Asignada</label>
+                <select value={newCompra.presupuesto_item_id} onChange={e=>setNewCompra({...newCompra,presupuesto_item_id:e.target.value})}>
+                  <option value="">Sin partida</option>
+                  {presupuestoItems.filter(p => p.cantidad > 0 || p.precio_unitario > 0).map(p => (
+                    <option key={p.id} value={p.id}>{p.codigo ? `${p.codigo} — ` : ''}{p.descripcion} ({p.unidad})</option>
+                  ))}
+                </select>
+              </div>
               <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
             </div>
           </form>
