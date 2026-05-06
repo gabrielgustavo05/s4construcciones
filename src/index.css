@@ -1229,9 +1229,4 @@ select option {
 }
 
 .critical-delay { animation: blink-red 2s infinite; border: 2px solid var(--red) !important; }
-
-/* PRUEBA DE DIAGNÓSTICO */
-.sidebar { background: #32CD32 !important; }
-h1, h2, h3 { color: #32CD32 !important; }
-.css-logo { transform: scale(2) !important; }
 

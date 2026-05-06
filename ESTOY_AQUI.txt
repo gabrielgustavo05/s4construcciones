@@ -1,3 +1,0 @@
-ESTO ES UNA PRUEBA PARA VER SI ESTOY EN LA CARPETA CORRECTA.
-Si ves este archivo, dime: "SI VEO EL ARCHIVO".
-Si no lo ves, dime: "NO VEO NADA".

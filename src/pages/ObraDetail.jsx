@@ -455,7 +455,7 @@ export default function ObraDetail() {
       {tab === 1 && (
         <div className="tab-panel active">
           <div className="fb" style={{ marginBottom: 14 }}>
-            <h3 style={{ fontSize:15,fontWeight:800, color: 'red' }}>Presupuesto Detallado (VERSION NUEVA)</h3>
+            <h3 style={{ fontSize:15,fontWeight:800 }}>Presupuesto Detallado</h3>
             <div style={{ display:'flex',gap:8 }}>
               <label className="btn btn-s btn-sm" style={{ cursor:'pointer' }}>
                 🤖 Importar Excel AI
