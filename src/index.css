@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
   /* Backgrounds */
@@ -67,6 +67,7 @@ html { font-size: 14px; }
   /* Gradiente Plata LÃ­quida (Simula luz metÃ¡lica) */
   background: linear-gradient(135deg, #ffffff 0%, #e4e4e7 30%, #a1a1aa 70%, #ffffff 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   padding-right: 4px;
   -webkit-text-stroke: 1px rgba(255,255,255,0.4); /* Reflejo en el borde */
@@ -76,6 +77,7 @@ html { font-size: 14px; }
   /* Gradiente Zafiro Profundo */
   background: linear-gradient(135deg, #38bdf8 0%, #0369a1 40%, #082f49 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-left: -4px; /* Kerning negativo para que se entrelacen sutilmente */
   position: relative;
