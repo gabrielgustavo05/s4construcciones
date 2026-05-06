@@ -23,6 +23,9 @@ export default function ObraDetail() {
   const [trabajadores, setTrabajadores] = useState([]);
   const [newAsistencia, setNewAsistencia] = useState({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0 });
 
+  const [materialesGlobales, setMaterialesGlobales] = useState([]);
+  const [showResumenCompras, setShowResumenCompras] = useState(false);
+
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
     setObra(o);
@@ -52,6 +55,19 @@ export default function ObraDetail() {
 
   useEffect(() => { fetchObra(); }, [fetchObra]);
   useEffect(() => { fetchTab(tab); }, [tab, fetchTab]);
+
+  useEffect(() => {
+    if (tab === 3) {
+      const fetchMaterialesGlobales = async () => {
+        const { data } = await supabase.from('compras').select('descripcion');
+        if (data) {
+          const unique = [...new Set(data.map(d => d.descripcion))].filter(Boolean).sort();
+          setMaterialesGlobales(unique);
+        }
+      };
+      fetchMaterialesGlobales();
+    }
+  }, [tab]);
 
   // ── Acciones genéricas ──
   const deleteRow = async (table, rowId) => {
@@ -410,7 +426,13 @@ export default function ObraDetail() {
         <div className="tab-panel active">
           <form onSubmit={addCompra} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
             <div style={{ display:'grid',gridTemplateColumns:'1fr 60px 80px 110px 1fr 110px 110px 44px',gap:8,alignItems:'end' }}>
-              <div className="form-group" style={{ margin:0 }}><label>Descripción *</label><input required value={newCompra.descripcion} onChange={e=>setNewCompra({...newCompra,descripcion:e.target.value})}/></div>
+              <div className="form-group" style={{ margin:0 }}>
+                <label>Descripción *</label>
+                <input required list="materiales-list" value={newCompra.descripcion} onChange={e=>setNewCompra({...newCompra,descripcion:e.target.value})}/>
+                <datalist id="materiales-list">
+                  {materialesGlobales.map((m, i) => <option key={i} value={m} />)}
+                </datalist>
+              </div>
               <div className="form-group" style={{ margin:0 }}><label>Und</label><input value={newCompra.unidad} onChange={e=>setNewCompra({...newCompra,unidad:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>Cantidad</label><input type="number" step="0.01" required value={newCompra.cantidad} onChange={e=>setNewCompra({...newCompra,cantidad:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>P. Unit</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e=>setNewCompra({...newCompra,precio_unitario:e.target.value})}/></div>
@@ -420,6 +442,11 @@ export default function ObraDetail() {
               <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
             </div>
           </form>
+
+          <div className="fb" style={{ marginBottom: 14 }}>
+            <h3 style={{ fontSize:15,fontWeight:800 }}>Historial de Compras</h3>
+            <button className="btn btn-s btn-sm" onClick={() => setShowResumenCompras(true)}>📊 Ver Resumen por Material</button>
+          </div>
 
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
@@ -625,6 +652,47 @@ export default function ObraDetail() {
               <button type="submit" className="btn btn-a">Guardar cambios</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {showResumenCompras && (
+        <Modal title="📊 Resumen de Compras por Material" onClose={() => setShowResumenCompras(false)}>
+          <div className="tw">
+            <table>
+              <thead>
+                <tr><th>Material / Descripción</th><th>Und</th><th style={{textAlign:'right'}}>Cant. Total</th><th style={{textAlign:'right'}}>P. Unit. Promedio</th><th style={{textAlign:'right'}}>Total Gastado</th></tr>
+              </thead>
+              <tbody>
+                {Object.values(
+                  data.compras.reduce((acc, c) => {
+                    if (!acc[c.descripcion]) acc[c.descripcion] = { desc: c.descripcion, und: c.unidad, cant: 0, total: 0 };
+                    acc[c.descripcion].cant += c.cantidad;
+                    acc[c.descripcion].total += c.cantidad * c.precio_unitario;
+                    return acc;
+                  }, {})
+                )
+                .sort((a,b) => b.total - a.total)
+                .map((m, i) => (
+                  <tr key={i}>
+                    <td><strong>{m.desc}</strong></td>
+                    <td className="ts tx">{m.und}</td>
+                    <td className="mono" style={{textAlign:'right'}}>{m.cant}</td>
+                    <td className="mono" style={{textAlign:'right'}}>{clp(m.total / (m.cant || 1))}</td>
+                    <td className="mono" style={{textAlign:'right', fontWeight:700, color:'var(--accent)'}}>{clp(m.total)}</td>
+                  </tr>
+                ))}
+                {data.compras.length > 0 && (
+                  <tr style={{ background:'var(--bg3)' }}>
+                    <td colSpan="4" style={{ textAlign:'right', fontWeight:800 }}>TOTAL COMPRAS:</td>
+                    <td className="mono" style={{ textAlign:'right', fontWeight:800, color:'var(--accent)' }}>{clp(calcCompras(data.compras))}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="modal-actions">
+            <button className="btn btn-s" onClick={() => setShowResumenCompras(false)}>Cerrar</button>
+          </div>
         </Modal>
       )}
     </div>
