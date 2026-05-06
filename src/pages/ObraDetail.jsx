@@ -40,9 +40,9 @@ export default function ObraDetail() {
     if (tabIndex === 0) { setLoading(false); return; }
     const table = tables[tabIndex - 1];
     
-    let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('codigo', { ascending: true });
+    let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
     if (table === 'presupuesto_items') {
-      query = supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true }).order('codigo', { ascending: true });
+      query = supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
     }
     if (table === 'asistencia') {
       query = supabase.from('asistencia').select('*, trabajador:trabajador_id(*)').eq('obra_id', id).order('fecha', { ascending: false });
@@ -419,6 +419,7 @@ export default function ObraDetail() {
                             type="number" 
                             defaultValue={p.cantidad} 
                             onBlur={(e) => updateItemField(p.id, 'cantidad', e.target.value)}
+                            onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
                             onClick={(e) => e.stopPropagation()}
                             style={{ width:70, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
@@ -432,6 +433,7 @@ export default function ObraDetail() {
                             type="number" 
                             defaultValue={p.precio_unitario} 
                             onBlur={(e) => updateItemField(p.id, 'precio_unitario', e.target.value)}
+                            onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
                             onClick={(e) => e.stopPropagation()}
                             style={{ width:90, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
