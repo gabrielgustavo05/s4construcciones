@@ -626,7 +626,9 @@ export default function ObraDetail() {
                             const c = cleanNum(p.cantidad);
                             const u = cleanNum(p.precio_unitario);
                             const res = c * u;
-                            return res === 0 && (p.cantidad || p.precio_unitario) ? <span style={{color:'var(--orange)'}}>Revisar</span> : clp(res);
+                            if (res === 0 && (c > 0 || u > 0)) return <span style={{color:'var(--orange)', fontSize: 10}}>Falta dato</span>;
+                            if (res === 0 && !isTitle) return clp(0);
+                            return clp(res);
                           })()}
                         </td>
                         <td>

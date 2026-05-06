@@ -68,7 +68,7 @@ export const badgeClass = (estado) => {
 // Limpiador de números Robusto e Inteligente
 export const cleanNum = (val) => {
   if (val === null || val === undefined || val === '') return 0;
-  if (typeof val === 'number') return val;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
   let s = String(val).trim();
   
   // Eliminar símbolos de moneda, espacios y otros caracteres no numéricos comunes al inicio/final
