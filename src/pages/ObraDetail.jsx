@@ -409,12 +409,13 @@ export default function ObraDetail() {
       {tab === 3 && (
         <div className="tab-panel active">
           <form onSubmit={addCompra} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
-            <div style={{ display:'grid',gridTemplateColumns:'1fr 70px 100px 130px 1fr 120px 44px',gap:8,alignItems:'end' }}>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 60px 80px 110px 1fr 110px 110px 44px',gap:8,alignItems:'end' }}>
               <div className="form-group" style={{ margin:0 }}><label>Descripción *</label><input required value={newCompra.descripcion} onChange={e=>setNewCompra({...newCompra,descripcion:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>Und</label><input value={newCompra.unidad} onChange={e=>setNewCompra({...newCompra,unidad:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>Cantidad</label><input type="number" step="0.01" required value={newCompra.cantidad} onChange={e=>setNewCompra({...newCompra,cantidad:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>P. Unitario</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e=>setNewCompra({...newCompra,precio_unitario:e.target.value})}/></div>
+              <div className="form-group" style={{ margin:0 }}><label>P. Unit</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e=>setNewCompra({...newCompra,precio_unitario:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>Proveedor</label><input value={newCompra.proveedor} onChange={e=>setNewCompra({...newCompra,proveedor:e.target.value})}/></div>
+              <div className="form-group" style={{ margin:0 }}><label>N° Doc</label><input value={newCompra.n_documento} onChange={e=>setNewCompra({...newCompra,n_documento:e.target.value})}/></div>
               <div className="form-group" style={{ margin:0 }}><label>Fecha</label><input type="date" value={newCompra.fecha} onChange={e=>setNewCompra({...newCompra,fecha:e.target.value})}/></div>
               <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
             </div>
@@ -423,10 +424,10 @@ export default function ObraDetail() {
           <div className="card" style={{ padding:0 }}>
             <div className="tw">
               <table>
-                <thead><tr><th>N°</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cantidad</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th>Proveedor</th><th>Fecha</th><th></th></tr></thead>
+                <thead><tr><th>N°</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cantidad</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th>Proveedor</th><th>N° Doc</th><th>Fecha</th><th></th></tr></thead>
                 <tbody>
                   {data.compras.length === 0 ? (
-                    <tr><td colSpan="9" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin compras registradas.</td></tr>
+                    <tr><td colSpan="10" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin compras registradas.</td></tr>
                   ) : data.compras.map((c,i) => {
                     const tot = c.cantidad * c.precio_unitario;
                     return (
@@ -438,6 +439,7 @@ export default function ObraDetail() {
                         <td className="mono" style={{ textAlign:'right' }}>{clp(c.precio_unitario)}</td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
                         <td className="ts tx">{c.proveedor||'-'}</td>
+                        <td className="ts tx">{c.n_documento||'-'}</td>
                         <td className="ts">{c.fecha||'-'}</td>
                         <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('compras', c.id)}>✕</button></td>
                       </tr>

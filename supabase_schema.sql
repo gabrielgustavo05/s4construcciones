@@ -241,3 +241,4 @@ CREATE POLICY "asis_select" ON asistencia FOR SELECT USING (EXISTS (SELECT 1 FRO
 CREATE POLICY "asis_insert" ON asistencia FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
 CREATE POLICY "asis_update" ON asistencia FOR UPDATE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
 CREATE POLICY "asis_delete" ON asistencia FOR DELETE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS n_documento TEXT;  
