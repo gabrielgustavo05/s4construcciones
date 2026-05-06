@@ -13,9 +13,7 @@ export default function ObraDetail() {
   const [tab, setTab] = useState(0);
   const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [] });
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [excelPreview, setExcelPreview] = useState(null);
-  const [form, setForm] = useState({});
 
   const [showEditObra, setShowEditObra] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -470,6 +468,7 @@ export default function ObraDetail() {
                   ))}
                 </select>
               </div>
+              <div className="form-group" style={{ margin:0 }}><label>Fecha</label><input type="date" max={today()} value={newCompra.fecha} onChange={e=>setNewCompra({...newCompra,fecha:e.target.value})}/></div>
               <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
             </div>
           </form>

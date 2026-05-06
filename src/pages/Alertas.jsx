@@ -11,7 +11,7 @@ export default function Alertas() {
   const fetchAlertas = useCallback(async () => {
     const { data: obras } = await supabase
       .from('obras')
-      .select(`id, nombre, estado, presupuesto_items(cantidad, precio_unitario), compras(cantidad, precio_unitario), cotizaciones(estado), estados_pago(estado, monto_bruto, retencion_pct, fecha_pago_estimada), hitos(estado, nombre, fecha_fin_plan)`)
+      .select(`id, nombre, estado, presupuesto_items(id, descripcion, cantidad, precio_unitario), compras(cantidad, precio_unitario, presupuesto_item_id), cotizaciones(estado), estados_pago(estado, monto_bruto, retencion_pct, fecha_pago_estimada), hitos(estado, nombre, fecha_fin_plan)`)
       .neq('estado', 'Finalizada');
 
     if (!obras) { setLoading(false); return; }
@@ -47,6 +47,17 @@ export default function Alertas() {
       // Hitos atrasados
       (o.hitos || []).filter(h => h.estado === 'Atrasado').forEach(h => {
         list.push({ ico: '⚠️', niv: 'w', tit: `Hito atrasado: ${h.nombre}`, desc: `Obra: ${o.nombre} · Fin plan: ${h.fecha_fin_plan || '-'}`, oId: o.id });
+      });
+
+      // Sobrecompra por partida
+      (o.presupuesto_items || []).filter(p => p.cantidad > 0).forEach(p => {
+        const comprado = (o.compras || [])
+          .filter(c => c.presupuesto_item_id === p.id)
+          .reduce((s, c) => s + Number(c.cantidad), 0);
+        if (comprado > p.cantidad) {
+          const exceso = comprado - p.cantidad;
+          list.push({ ico: '📦', niv: 'c', tit: `Sobrecompra: ${p.descripcion}`, desc: `Obra: ${o.nombre} · Presupuestado: ${p.cantidad} · Comprado: ${comprado} · Exceso: +${exceso}`, oId: o.id });
+        }
       });
     }
 
