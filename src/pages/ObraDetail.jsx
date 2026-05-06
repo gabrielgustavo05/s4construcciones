@@ -1249,3 +1249,7 @@ export default function ObraDetail() {
 
       {/* Modales anteriores... */}
       {/* ... */}
+
+    </div>
+  );
+}

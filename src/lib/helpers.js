@@ -65,17 +65,6 @@ export const badgeClass = (estado) => {
   return map[estado] || 'b-gray';
 };
 
-// Importador Excel inteligente
-export const parseExcel = async (file) => {
-  const XLSX = await import('xlsx');
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
 // Limpiador de números Robusto e Inteligente
 export const cleanNum = (val) => {
   if (val === null || val === undefined || val === '') return 0;
@@ -109,6 +98,17 @@ export const cleanNum = (val) => {
 };
 
 export const parseNum = cleanNum; // Alias para compatibilidad
+
+// Importador Excel inteligente
+export const parseExcel = async (file) => {
+  const XLSX = await import('xlsx');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
         // Encontrar fila de encabezados
         let headerRow = -1;
