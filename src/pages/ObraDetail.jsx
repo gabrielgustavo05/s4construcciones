@@ -519,7 +519,7 @@ export default function ObraDetail() {
                     <tr><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Agrega manualmente o importa desde Excel.</td></tr>
                   ) : data.presupuesto.map((p,i) => {
                     const tot = p.cantidad * p.precio_unitario;
-                    const isTitle = (p.cantidad === 0 && p.precio_unitario === 0 && p.codigo);
+                    const isTitle = (Number(p.cantidad) === 0 && Number(p.precio_unitario) === 0 && p.codigo && !p.descripcion.toLowerCase().includes('instalación'));
                     
                     let sobrecompra = false;
                     const comprasPartida = data.compras_cotejo.filter(c => c.presupuesto_item_id === p.id);
@@ -560,7 +560,7 @@ export default function ObraDetail() {
                       );
                     }
                     return (
-                      <tr key={p.id} onClick={() => setSelectedPartida(p)} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
+                      <tr key={`${p.id}-${p.cantidad}-${p.precio_unitario}`} onClick={() => setSelectedPartida(p)} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
                         <td className="ts tx">{i+1}</td>
                         <td className="ts tx">
                            <input 
@@ -600,7 +600,9 @@ export default function ObraDetail() {
                             style={{ width:90, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
                           />
                         </td>
-                        <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(parseNum(p.cantidad) * parseNum(p.precio_unitario))}</td>
+                        <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
+                          {clp(parseNum(p.cantidad) * parseNum(p.precio_unitario))}
+                        </td>
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
                             <button className="btn btn-s btn-sm" title="Materiales requeridos" onClick={(e) => { e.stopPropagation(); setSelectedPartida(p); }}>📦</button>
