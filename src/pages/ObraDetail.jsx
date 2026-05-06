@@ -109,7 +109,7 @@ export default function ObraDetail() {
     }
 
     if (table === 'compras') {
-      const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad').eq('obra_id', id).order('created_at', { ascending: true });
+      const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad, precio_unitario').eq('obra_id', id).order('created_at', { ascending: true });
       setPresupuestoItems(items || []);
     }
 
