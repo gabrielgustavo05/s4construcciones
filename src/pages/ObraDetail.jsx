@@ -26,6 +26,7 @@ export default function ObraDetail() {
   const [presupuestoItems, setPresupuestoItems] = useState([]);
 
   const [selectedPartida, setSelectedPartida] = useState(null);
+  const [editPartidaForm, setEditPartidaForm] = useState(null);
   const [newMaterial, setNewMaterial] = useState({ descripcion:'', unidad:'UN', cantidad:'' });
 
   const fetchObra = useCallback(async () => {
@@ -129,6 +130,22 @@ export default function ObraDetail() {
     await supabase.from('presupuesto_items').insert([{ ...newItem, obra_id: id, cantidad: Number(newItem.cantidad), precio_unitario: Number(newItem.precio_unitario) }]);
     setNewItem({ codigo:'', descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'' });
     fetchTab(1);
+  };
+
+  const handleUpdatePartida = async (e) => {
+    e.preventDefault();
+    const payload = {
+      codigo: editPartidaForm.codigo,
+      descripcion: editPartidaForm.descripcion,
+      unidad: editPartidaForm.unidad,
+      cantidad: Number(editPartidaForm.cantidad),
+      precio_unitario: Number(editPartidaForm.precio_unitario)
+    };
+    const { error } = await supabase.from('presupuesto_items').update(payload).eq('id', editPartidaForm.id);
+    if (!error) {
+      setEditPartidaForm(null);
+      fetchTab(1);
+    } else alert(error.message);
   };
 
   // ── Agregar compra ──
@@ -376,7 +393,12 @@ export default function ObraDetail() {
                           <td className="ts tx">{i+1}</td>
                           <td className="ts" style={{ color: 'var(--accent)', fontWeight: 800 }}>{p.codigo}</td>
                           <td colSpan="6"><strong>{p.descripcion}</strong></td>
-                          <td><button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
+                              <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     }
@@ -392,7 +414,12 @@ export default function ObraDetail() {
                         </td>
                         <td className="mono" style={{ textAlign:'right' }}>{clp(p.precio_unitario)}</td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
-                        <td><button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
+                            <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -798,6 +825,38 @@ export default function ObraDetail() {
               </tbody>
             </table>
           </div>
+        </Modal>
+      )}
+
+      {/* Modal Editar Partida */}
+      {editPartidaForm && (
+        <Modal title="✏️ Editar Partida" onClose={() => setEditPartidaForm(null)}>
+          <form onSubmit={handleUpdatePartida}>
+            <div className="form-group">
+              <label>Código</label>
+              <input value={editPartidaForm.codigo} onChange={e=>setEditPartidaForm({...editPartidaForm,codigo:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Descripción *</label>
+              <input required value={editPartidaForm.descripcion} onChange={e=>setEditPartidaForm({...editPartidaForm,descripcion:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Unidad</label>
+              <input value={editPartidaForm.unidad} onChange={e=>setEditPartidaForm({...editPartidaForm,unidad:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Cantidad</label>
+              <input type="number" step="0.01" required value={editPartidaForm.cantidad} onChange={e=>setEditPartidaForm({...editPartidaForm,cantidad:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>P. Unitario</label>
+              <input type="number" step="0.01" required value={editPartidaForm.precio_unitario} onChange={e=>setEditPartidaForm({...editPartidaForm,precio_unitario:e.target.value})} />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-s" onClick={() => setEditPartidaForm(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-a">Guardar cambios</button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
