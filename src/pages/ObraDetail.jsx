@@ -40,9 +40,9 @@ export default function ObraDetail() {
     if (tabIndex === 0) { setLoading(false); return; }
     const table = tables[tabIndex - 1];
     
-    let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true });
+    let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('codigo', { ascending: true });
     if (table === 'presupuesto_items') {
-      query = supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true });
+      query = supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true }).order('codigo', { ascending: true });
     }
     if (table === 'asistencia') {
       query = supabase.from('asistencia').select('*, trabajador:trabajador_id(*)').eq('obra_id', id).order('fecha', { ascending: false });
@@ -440,6 +440,7 @@ export default function ObraDetail() {
                         <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
+                            <button className="btn btn-s btn-sm" title="Materiales requeridos" onClick={(e) => { e.stopPropagation(); setSelectedPartida(p); }}>📦</button>
                             <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
                             <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id, true); }}>✕</button>
                           </div>
@@ -834,18 +835,23 @@ export default function ObraDetail() {
           </form>
           <div className="tw" style={{ maxHeight: '300px', overflowY: 'auto' }}>
             <table>
-              <thead><tr><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cantidad</th><th></th></tr></thead>
+              <thead><tr><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cant. Requerida</th><th style={{ textAlign:'right' }}>Comprado</th><th></th></tr></thead>
               <tbody>
                 {(!selectedPartida.presupuesto_materiales || selectedPartida.presupuesto_materiales.length === 0) ? (
-                  <tr><td colSpan="4" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>No hay materiales específicos en esta partida.</td></tr>
-                ) : selectedPartida.presupuesto_materiales.map(m => (
-                  <tr key={m.id}>
-                    <td><strong>{m.descripcion}</strong></td>
-                    <td className="ts tx">{m.unidad}</td>
-                    <td className="mono" style={{ textAlign:'right' }}>{m.cantidad}</td>
-                    <td><button className="btn btn-d btn-sm" onClick={() => deleteMaterialRequerido(m.id)}>✕</button></td>
-                  </tr>
-                ))}
+                  <tr><td colSpan="5" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>No hay materiales específicos en esta partida.</td></tr>
+                ) : selectedPartida.presupuesto_materiales.map(m => {
+                  const compradoMat = data.compras_cotejo.filter(c => c.presupuesto_item_id === selectedPartida.id && (c.descripcion || '').toLowerCase() === (m.descripcion || '').toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+                  const exc = compradoMat > m.cantidad;
+                  return (
+                    <tr key={m.id} style={{ background: exc ? 'rgba(239,68,68,0.07)' : undefined }}>
+                      <td><strong>{m.descripcion}</strong></td>
+                      <td className="ts tx">{m.unidad}</td>
+                      <td className="mono" style={{ textAlign:'right' }}>{m.cantidad}</td>
+                      <td className="mono" style={{ textAlign:'right', color: exc ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{compradoMat} {exc && '⚠️'}</td>
+                      <td><button className="btn btn-d btn-sm" onClick={() => deleteMaterialRequerido(m.id)}>✕</button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
