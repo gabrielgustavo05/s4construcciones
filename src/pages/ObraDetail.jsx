@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { clp, calcPresupuesto, calcCompras, calcAsistencia, today, parseExcel } from '../lib/helpers';
+import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, parseExcel, parseNum } from '../lib/helpers';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
@@ -359,8 +359,7 @@ export default function ObraDetail() {
   const updateItemField = async (itemId, field, value) => {
     let finalVal = value;
     if (field === 'cantidad' || field === 'precio_unitario') {
-      finalVal = Number(value);
-      if (isNaN(finalVal)) return;
+      finalVal = parseNum(value);
     }
     await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
     fetchTab(1);
@@ -601,7 +600,7 @@ export default function ObraDetail() {
                             style={{ width:90, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
                           />
                         </td>
-                        <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(Number(p.cantidad || 0) * Number(p.precio_unitario || 0))}</td>
+                        <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(parseNum(p.cantidad) * parseNum(p.precio_unitario))}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
                             <button className="btn btn-s btn-sm" title="Materiales requeridos" onClick={(e) => { e.stopPropagation(); setSelectedPartida(p); }}>📦</button>

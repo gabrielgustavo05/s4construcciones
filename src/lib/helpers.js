@@ -23,7 +23,7 @@ export const today = () => new Date().toISOString().split('T')[0];
 // Calcular totales de presupuesto
 export const calcPresupuesto = (items, ggPct = 15, utilPct = 10) => {
   const subtotal = items.reduce(
-    (acc, i) => acc + Number(i.cantidad) * Number(i.precio_unitario), 0
+    (acc, i) => acc + parseNum(i.cantidad) * parseNum(i.precio_unitario), 0
   );
   const gastosGenerales = subtotal * (ggPct / 100);
   const utilidad = subtotal * (utilPct / 100);
@@ -35,7 +35,7 @@ export const calcPresupuesto = (items, ggPct = 15, utilPct = 10) => {
 
 // Calcular total de compras
 export const calcCompras = (compras) =>
-  compras.reduce((acc, c) => acc + Number(c.cantidad) * Number(c.precio_unitario), 0);
+  compras.reduce((acc, c) => acc + parseNum(c.cantidad) * parseNum(c.precio_unitario), 0);
 
 // Calcular total de asistencia (Sueldos)
 export const calcAsistencia = (asistencias) =>
@@ -75,18 +75,21 @@ export const parseExcel = async (file) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        // Parser de números en formato chileno (1.234.567 o 1.234.567,50)
-        const parseNum = (v) => {
-          if (v === null || v === undefined || v === '') return 0;
-          if (typeof v === 'number') return v;
-          const s = String(v).trim().replace(/[$\s%]/g, '');
-          // Formato chileno: puntos como miles, coma como decimal
-          if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
-            return parseFloat(s.replace(/\./g, '').replace(',', '.'));
-          }
-          // Formato con coma decimal sin miles
-          return parseFloat(s.replace(',', '.'));
-        };
+// Parser de números en formato chileno (1.234.567 o 1.234.567,50)
+export const parseNum = (v) => {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  let s = String(v).trim().replace(/[$\s%]/g, '');
+  // Si tiene puntos de miles y coma decimal (estilo chileno: 1.234,56)
+  if (s.includes('.') && s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes(',')) {
+    // Si solo tiene coma (estilo: 1234,56)
+    s = s.replace(',', '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+};
 
         // Encontrar fila de encabezados
         let headerRow = -1;
