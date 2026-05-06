@@ -76,37 +76,16 @@ export const parseExcel = async (file) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-// Parser de números Chileno Ultra-Robusto
-export const parseNum = (v) => {
-  if (v === null || v === undefined || v === '') return 0;
-  if (typeof v === 'number') return v;
-  
-  let s = String(v).trim().replace(/[$\s%]/g, '');
-  if (!s) return 0;
-
-  // Si hay coma y punto, el punto es miles.
-  if (s.includes(',') && s.includes('.')) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else if (s.includes(',')) {
-    // Si solo hay coma, es decimal (ej: 114,04)
-    s = s.replace(',', '.');
-  } else if (s.includes('.')) {
-    // Si solo hay punto, en Chile suele ser miles (ej: 1.000)
-    // Pero si el punto está muy cerca del final (1 o 2 decimales), podría ser decimal
-    const parts = s.split('.');
-    const lastPart = parts[parts.length - 1];
-    if (lastPart.length !== 3) {
-      // Es probable que sea decimal (ej: 114.04)
-      // No hacemos nada, parseFloat lo entenderá
-    } else {
-      // Es probable que sea miles (ej: 1.000)
-      s = s.replace(/\./g, '');
-    }
-  }
-
+// Limpiador de números Robusto (Maneja comas chilenas y puntos de miles)
+export const cleanNum = (val) => {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).trim().replace(/[$.]/g, '').replace(',', '.');
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
+
+export const parseNum = cleanNum; // Alias para compatibilidad
 
         // Encontrar fila de encabezados
         let headerRow = -1;

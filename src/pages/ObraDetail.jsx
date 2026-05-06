@@ -598,7 +598,7 @@ export default function ObraDetail() {
                         <td><span style={{ background:'var(--bg4)',padding:'2px 6px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{p.unidad}</span></td>
                         <td className="mono" style={{ textAlign:'right' }}>
                           <input 
-                            type="number" 
+                            type="text" 
                             defaultValue={p.cantidad === 0 ? '' : p.cantidad} 
                             onBlur={(e) => updateItemField(p.id, 'cantidad', e.target.value)}
                             onFocus={(e) => e.target.select()}
@@ -612,7 +612,7 @@ export default function ObraDetail() {
                         </td>
                         <td className="mono" style={{ textAlign:'right' }}>
                           <input 
-                            type="number" 
+                            type="text" 
                             defaultValue={p.precio_unitario === 0 ? '' : p.precio_unitario} 
                             onBlur={(e) => updateItemField(p.id, 'precio_unitario', e.target.value)}
                             onFocus={(e) => e.target.select()}
@@ -623,10 +623,15 @@ export default function ObraDetail() {
                         </td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
                           {(() => {
-                            const c = parseNum(p.cantidad);
-                            const u = parseNum(p.precio_unitario);
-                            const res = c * u;
-                            return clp(res);
+                            const clean = (val) => {
+                              if (!val) return 0;
+                              if (typeof val === 'number') return val;
+                              const s = String(val).replace(/[$.]/g, '').replace(',', '.');
+                              return parseFloat(s) || 0;
+                            };
+                            const c = clean(p.cantidad);
+                            const u = clean(p.precio_unitario);
+                            return clp(Math.round(c * u));
                           })()}
                         </td>
                         <td>
