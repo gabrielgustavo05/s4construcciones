@@ -120,12 +120,14 @@ export const parseExcel = async (file) => {
           const desc = colMap.desc !== -1 ? String(row[colMap.desc] || '').trim() : '';
           const qty = colMap.qty !== -1 ? parseFloat(row[colMap.qty]) : 0;
           const price = colMap.price !== -1 ? parseFloat(row[colMap.price]) : 0;
+          const codigo = colMap.num !== -1 ? String(row[colMap.num] || '').trim() : '';
 
-          // Filtrar filas vacías o inválidas
-          if (!desc || desc.toLowerCase().includes('total') || (!qty && !price)) continue;
+          // Filtrar filas vacías o inválidas (si no tiene ni código ni montos, se ignora)
+          if (!desc || desc.toLowerCase().includes('total')) continue;
+          if (!qty && !price && !codigo) continue;
 
           items.push({
-            codigo: colMap.num !== -1 ? String(row[colMap.num] || '').trim() : '',
+            codigo: codigo,
             descripcion: desc,
             unidad: colMap.unit !== -1 ? String(row[colMap.unit] || 'UN').trim() || 'UN' : 'UN',
             cantidad: isNaN(qty) ? 0 : qty,

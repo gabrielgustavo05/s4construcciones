@@ -226,16 +226,27 @@ export default function ObraDetail() {
                 <table>
                   <thead><tr><th>Código</th><th>Descripción</th><th>Und</th><th>Cantidad</th><th>P. Unitario</th><th>Total</th></tr></thead>
                   <tbody>
-                    {excelPreview.slice(0,20).map((i,idx) => (
-                      <tr key={idx}>
-                        <td className="ts tx">{i.codigo||'-'}</td>
-                        <td>{i.descripcion}</td>
-                        <td>{i.unidad}</td>
-                        <td className="mono">{i.cantidad}</td>
-                        <td className="mono">{clp(i.precio_unitario)}</td>
-                        <td className="mono">{clp(i.cantidad * i.precio_unitario)}</td>
-                      </tr>
-                    ))}
+                    {excelPreview.slice(0,20).map((i,idx) => {
+                      const isTitle = (i.cantidad === 0 && i.precio_unitario === 0 && i.codigo);
+                      if (isTitle) {
+                        return (
+                          <tr key={idx} style={{ background: 'var(--bg3)' }}>
+                            <td className="ts" style={{ color: 'var(--accent)', fontWeight: 800 }}>{i.codigo}</td>
+                            <td colSpan="5"><strong>{i.descripcion}</strong></td>
+                          </tr>
+                        );
+                      }
+                      return (
+                        <tr key={idx}>
+                          <td className="ts tx">{i.codigo||'-'}</td>
+                          <td>{i.descripcion}</td>
+                          <td>{i.unidad}</td>
+                          <td className="mono">{i.cantidad}</td>
+                          <td className="mono">{clp(i.precio_unitario)}</td>
+                          <td className="mono">{clp(i.cantidad * i.precio_unitario)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -283,6 +294,17 @@ export default function ObraDetail() {
                     <tr><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Agrega manualmente o importa desde Excel.</td></tr>
                   ) : data.presupuesto.map((p,i) => {
                     const tot = p.cantidad * p.precio_unitario;
+                    const isTitle = (p.cantidad === 0 && p.precio_unitario === 0 && p.codigo);
+                    if (isTitle) {
+                      return (
+                        <tr key={p.id} style={{ background: 'var(--bg3)' }}>
+                          <td className="ts tx">{i+1}</td>
+                          <td className="ts" style={{ color: 'var(--accent)', fontWeight: 800 }}>{p.codigo}</td>
+                          <td colSpan="5"><strong>{p.descripcion}</strong></td>
+                          <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('presupuesto_items', p.id)}>✕</button></td>
+                        </tr>
+                      );
+                    }
                     return (
                       <tr key={p.id}>
                         <td className="ts tx">{i+1}</td>
