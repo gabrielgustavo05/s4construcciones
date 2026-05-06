@@ -25,6 +25,7 @@ export default function Dashboard() {
           gastos_generales_pct, utilidad_pct,
           presupuesto_items ( cantidad, precio_unitario ),
           compras ( cantidad, precio_unitario ),
+          asistencia ( total_pago ),
           cotizaciones ( monto, estado ),
           subcontratos ( monto_contrato ),
           estados_pago ( monto_bruto, retencion_pct, estado ),
@@ -34,15 +35,28 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      const obrasData = data.map((o) => {
+      // 1. Separar obras principales de espejos
+      const principales = data.filter(o => o.departamento === 'Construcción' || !o.obra_padre_id);
+      const espejos      = data.filter(o => o.departamento === 'Eléctrico' && o.obra_padre_id);
+
+      // 2. Consolidar datos
+      const obrasData = principales.map((main) => {
+        const espejo = espejos.find(e => e.obra_padre_id === main.id);
+        
         const { total: totalPres } = calcPresupuesto(
-          o.presupuesto_items || [],
-          o.gastos_generales_pct,
-          o.utilidad_pct
+          main.presupuesto_items || [],
+          main.gastos_generales_pct,
+          main.utilidad_pct
         );
-        const totalCompras = calcCompras(o.compras || []);
+
+        // Sumar gastos de la obra principal + gastos del espejo eléctrico
+        const gastoPrincipal = calcCompras(main.compras || []) + (main.asistencia || []).reduce((acc, a) => acc + Number(a.total_pago || 0), 0);
+        const gastoEspejo    = espejo ? (calcCompras(espejo.compras || []) + (espejo.asistencia || []).reduce((acc, a) => acc + Number(a.total_pago || 0), 0)) : 0;
+        
+        const totalCompras = gastoPrincipal + gastoEspejo;
         const diferencia   = totalPres - totalCompras;
-        return { ...o, totalPres, totalCompras, diferencia };
+
+        return { ...main, totalPres, totalCompras, diferencia };
       });
 
       setObras(obrasData);
@@ -147,14 +161,10 @@ export default function Dashboard() {
   );
 
   const activas     = obras.filter((o) => o.estado === 'Activa' || o.estado === 'En Progreso');
-  
-  // Financieros: Solo sumar obras de Construcción (o sin padre) para evitar duplicidad de montos
-  const obrasPrincipales = obras.filter(o => !o.obra_padre_id || o.departamento === 'Construcción');
-  const totalPres   = obrasPrincipales.reduce((s, o) => s + o.totalPres, 0);
-  const totalGasto  = obrasPrincipales.reduce((s, o) => s + o.totalCompras, 0);
-  
+  const totalPres   = obras.reduce((s, o) => s + o.totalPres, 0);
+  const totalGasto  = obras.reduce((s, o) => s + o.totalCompras, 0);
   const avPromedio  = activas.length ? Math.round(activas.reduce((s, o) => s + (o.avance || 0), 0) / activas.length) : 0;
-  const totalSubs   = obrasPrincipales.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
+  const totalSubs   = obras.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
   const cotPend     = obras.reduce((s, o) => s + (o.cotizaciones || []).filter((c) => c.estado === 'Pendiente').length, 0);
 
   return (
