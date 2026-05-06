@@ -23,6 +23,9 @@ export default function ObraDetail() {
 
   const [materialesGlobales, setMaterialesGlobales] = useState([]);
   const [showResumenCompras, setShowResumenCompras] = useState(false);
+  const [showSolicitudModal, setShowSolicitudModal] = useState(false);
+  const [newSolicitud, setNewSolicitud] = useState({ titulo: '', urgencia: 'Normal' });
+  const [uploading, setUploading] = useState(false);
   const [presupuestoItems, setPresupuestoItems] = useState([]);
 
   const [selectedPartida, setSelectedPartida] = useState(null);
@@ -110,6 +113,10 @@ export default function ObraDetail() {
       setPresupuestoItems(items || []);
     }
 
+    if (tabIndex === 4) {
+       const { data: sol } = await supabase.from('solicitudes_material').select('*').eq('obra_id', id).order('created_at', { ascending: false });
+       setData(d => ({ ...d, solicitudes: sol || [] }));
+    }
     setLoading(false);
   }, [id, obra]);
 
@@ -264,6 +271,55 @@ export default function ObraDetail() {
     fetchTab(2); // tab 2 es Asistencia
   };
 
+  const handleUploadPedido = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${id}_${Date.now()}.${fileExt}`;
+      const filePath = `pedidos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('logistica')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('logistica')
+        .getPublicUrl(filePath);
+
+      // Crear registro en la tabla
+      const { error: dbError } = await supabase.from('solicitudes_material').insert([{
+        obra_id: id,
+        titulo: newSolicitud.titulo || 'Solicitud de Material',
+        foto_pedido_url: publicUrl,
+        urgencia: newSolicitud.urgencia,
+        estado: 'Pendiente'
+      }]);
+
+      if (dbError) throw dbError;
+
+      setNewSolicitud({ titulo: '', urgencia: 'Normal' });
+      setShowSolicitudModal(false);
+      fetchTab(4);
+    } catch (err) {
+      alert('Error al subir solicitud: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const getHorasTranscurridas = (dateStr) => {
+    const start = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - start;
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    return diffHrs;
+  };
+
   const addCotizacion = async (e) => {
     e.preventDefault();
     await supabase.from('cotizaciones').insert([{ ...newCotizacion, obra_id: id, monto: Number(newCotizacion.monto) }]);
@@ -332,6 +388,9 @@ export default function ObraDetail() {
         {TABS.map((t, i) => (
           <button key={i} className={`tab-btn ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
         ))}
+        <button className={`tab-btn ${tab === 3 ? 'active' : ''}`} onClick={() => setTab(3)}>🛒 Compras</button>
+        <button className={`tab-btn ${tab === 4 ? 'active' : ''}`} onClick={() => setTab(4)}>📋 Solicitudes</button>
+        <button className={`tab-btn ${tab === 0 ? 'active' : ''}`} onClick={() => setTab(0)}>📊 Resumen</button>
       </div>
 
       {/* ── TAB 0: RESUMEN ── */}
@@ -1054,6 +1113,100 @@ export default function ObraDetail() {
           </form>
         </Modal>
       )}
-    </div>
-  );
-}
+      {/* ── TAB 4: SOLICITUDES DE MATERIAL ── */}
+      {tab === 4 && (
+        <div className="tab-panel active">
+          <div className="card" style={{ marginBottom:14 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <div className="card-title">📝 Solicitudes de Terreno</div>
+                <p className="ts tx">Jefe de Obra carga foto de lista manual para gestión</p>
+              </div>
+              <button className="btn btn-a" onClick={() => setShowSolicitudModal(true)}>+ Nueva Solicitud (Foto)</button>
+            </div>
+          </div>
+
+          <div className="sol-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
+            {(!data.solicitudes || data.solicitudes.length === 0) ? (
+              <div className="card" style={{ gridColumn:'1/-1', textAlign:'center', padding:40, color:'var(--text3)' }}>No hay solicitudes pendientes.</div>
+            ) : data.solicitudes.map(s => {
+              const hrs = getHorasTranscurridas(s.created_at);
+              const colorReloj = hrs >= 4 ? 'var(--red)' : hrs >= 2 ? 'var(--orange)' : 'var(--green)';
+              
+              return (
+                <div className="card" key={s.id} style={{ padding:0, overflow:'hidden', border: hrs >= 4 ? '2px solid var(--red)' : '1px solid var(--border)' }}>
+                  <div style={{ position:'relative', height:180, background:'var(--bg3)' }}>
+                    <img src={s.foto_pedido_url} alt="Pedido" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    <div style={{ position:'absolute', top:8, right:8 }}>
+                      <Badge estado={s.estado} />
+                    </div>
+                    {s.urgencia === 'Urgente' && (
+                      <div style={{ position:'absolute', top:8, left:8, background:'var(--red)', color:'white', fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:800 }}>URGENTE</div>
+                    )}
+                  </div>
+                  <div style={{ padding:14 }}>
+                    <div style={{ fontWeight:700, marginBottom:4 }}>{s.titulo}</div>
+                    <div className="ts tx" style={{ marginBottom:10 }}>Pedido por: Jefe de Obra · {fmtDate(s.created_at.split('T')[0])}</div>
+                    
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--bg2)', padding:'8px 12px', borderRadius:8 }}>
+                      <div style={{ fontSize:11, color:'var(--text2)' }}>Tiempo transcurrido:</div>
+                      <div style={{ fontWeight:800, color: colorReloj, display:'flex', alignItems:'center', gap:4 }}>
+                        <span style={{ fontSize:16 }}>⏱️</span> {hrs}h {hrs >= 4 && '(FUERA DE PLAZO)'}
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop:14, display:'flex', gap:8 }}>
+                      <button className="btn btn-s btn-sm" style={{ flex:1 }} onClick={() => window.open(s.foto_pedido_url, '_blank')}>Ver Foto</button>
+                      <button className="btn btn-a btn-sm" style={{ flex:1 }} onClick={() => navigate('/logistica')}>Gestionar</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nueva Solicitud */}
+      {showSolicitudModal && (
+        <Modal title="📷 Nueva Solicitud de Material" onClose={() => setShowSolicitudModal(false)}>
+          <div style={{ textAlign: 'center', padding: '10px 0' }}>
+            <p>Saca una foto a la lista de materiales escrita a mano para enviarla a gestión.</p>
+            
+            <div className="form-group" style={{ marginTop: 20 }}>
+              <label>Título / Glosa Corta</label>
+              <input 
+                type="text" 
+                placeholder="Ej: Materiales para fundaciones" 
+                value={newSolicitud.titulo}
+                onChange={e => setNewSolicitud({...newSolicitud, titulo: e.target.value})}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Urgencia</label>
+              <select value={newSolicitud.urgencia} onChange={e => setNewSolicitud({...newSolicitud, urgencia: e.target.value})}>
+                <option value="Normal">Normal (48 horas)</option>
+                <option value="Urgente">Urgente (24 horas)</option>
+              </select>
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <label className="btn btn-a" style={{ display:'inline-block', cursor:'pointer', padding:'14px 24px' }}>
+                {uploading ? 'Subiendo...' : '📷 SACAR FOTO / SUBIR ARCHIVO'}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment" 
+                  hidden 
+                  onChange={handleUploadPedido} 
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modales anteriores... */}
+      {/* ... */}

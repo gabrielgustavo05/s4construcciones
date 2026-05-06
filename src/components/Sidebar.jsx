@@ -7,6 +7,7 @@ const NAV = [
     { to: '/dashboard', icon: '📊', label: 'Dashboard' },
     { to: '/obras',     icon: '🏢', label: 'Obras' },
     { to: '/electrico', icon: '⚡', label: 'Dpto. Eléctrico' },
+    { to: '/logistica', icon: '🚚', label: 'Logística' },
   ]},
   { section: 'Gestión técnica', items: [
     { to: '/personal',     icon: '👷', label: 'Personal (Sueldos)' },

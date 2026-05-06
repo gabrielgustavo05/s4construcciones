@@ -13,6 +13,7 @@ import EstadosPago from './pages/EstadosPago';
 import FlujoCaja from './pages/FlujoCaja';
 import Alertas from './pages/Alertas';
 import Personal from './pages/Personal';
+import Logistica from './pages/Logistica';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="flujo-caja"   element={<FlujoCaja />} />
             <Route path="alertas"      element={<Alertas />} />
             <Route path="personal"     element={<Personal />} />
+            <Route path="logistica"    element={<Logistica />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
