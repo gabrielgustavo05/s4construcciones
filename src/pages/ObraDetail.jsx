@@ -26,6 +26,7 @@ export default function ObraDetail() {
   const [showSolicitudModal, setShowSolicitudModal] = useState(false);
   const [newSolicitud, setNewSolicitud] = useState({ titulo: '', urgencia: 'Normal' });
   const [uploading, setUploading] = useState(false);
+  const [totalEspejo, setTotalEspejo] = useState(0);
   const [presupuestoItems, setPresupuestoItems] = useState([]);
 
   const [selectedPartida, setSelectedPartida] = useState(null);
@@ -44,18 +45,18 @@ export default function ObraDetail() {
       setObra(o);
       setEditForm(o);
       
-      // SI ES OBRA PADRE: Sincronizar el valor de la partida 4.1 con el total del espejo eléctrico
-      const { data: espejos } = await supabase.from('obras').select('id').eq('obra_padre_id', id);
-      if (espejos && espejos.length > 0) {
-        const espejoId = espejos[0].id;
-        const { data: itemsElec } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', espejoId);
-        const { total: totalElec } = calcPresupuesto(itemsElec || [], 0, 0); // Solo costo directo
-        
-        // Actualizar la partida 4.1 en la obra actual
-        await supabase.from('presupuesto_items')
-          .update({ precio_unitario: totalElec, cantidad: 1 })
-          .eq('obra_id', id)
-          .eq('codigo', '4.1');
+      // Obtener total del espejo para sumarlo al presupuesto total
+      const { data: espejos } = await supabase.from('obras').select('id').eq('obra_parent_id', id); // Usar obra_parent_id o obra_padre_id según corresponda
+      const actualPadreId = o.obra_padre_id; 
+      
+      const { data: mirrors } = await supabase.from('obras').select('id').eq('obra_padre_id', id);
+      if (mirrors && mirrors.length > 0) {
+        const mirrorId = mirrors[0].id;
+        const { data: mItems } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', mirrorId);
+        const st = (mItems || []).reduce((acc, i) => acc + parseNum(i.cantidad) * parseNum(i.precio_unitario), 0);
+        setTotalEspejo(st);
+      } else {
+        setTotalEspejo(0);
       }
     }
   }, [id]);
@@ -388,7 +389,7 @@ export default function ObraDetail() {
 
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
 
-  const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct);
+  const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
   const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia) + (data.gasto_espejo || 0);
 
   return (
@@ -539,7 +540,6 @@ export default function ObraDetail() {
                   {data.presupuesto.length === 0 ? (
                     <tr><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Agrega manualmente o importa desde Excel.</td></tr>
                   ) : data.presupuesto.map((p,i) => {
-                    const tot = p.cantidad * p.precio_unitario;
                     const isTitle = (Number(p.cantidad) === 0 && Number(p.precio_unitario) === 0 && p.codigo && !p.descripcion.toLowerCase().includes('instalación'));
                     
                     let sobrecompra = false;
@@ -634,6 +634,18 @@ export default function ObraDetail() {
                       </tr>
                     );
                   })}
+                  {totalEspejo > 0 && (
+                    <tr style={{ background:'rgba(59, 130, 246, 0.05)' }}>
+                      <td className="ts tx">-</td>
+                      <td className="ts tx" style={{ color:'var(--blue)', fontWeight:800 }}>M-01</td>
+                      <td colSpan="2"><strong>PRESUPUESTO DEPTO. ELÉCTRICO (ESPEJO)</strong></td>
+                      <td className="mono" style={{ textAlign:'right' }}>1</td>
+                      <td className="mono" style={{ textAlign:'right' }}>-</td>
+                      <td className="mono" style={{ textAlign:'right' }}>{clp(totalEspejo)}</td>
+                      <td className="mono" style={{ textAlign:'right', fontWeight:700, color:'var(--blue)' }}>{clp(totalEspejo)}</td>
+                      <td></td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

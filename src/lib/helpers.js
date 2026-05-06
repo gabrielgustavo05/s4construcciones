@@ -21,16 +21,17 @@ export const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 export const today = () => new Date().toISOString().split('T')[0];
 
 // Calcular totales de presupuesto
-export const calcPresupuesto = (items, ggPct = 15, utilPct = 10) => {
-  const subtotal = items.reduce(
+export const calcPresupuesto = (items, ggPct = 15, utilPct = 10, totalEspejo = 0) => {
+  const subtotalItems = items.reduce(
     (acc, i) => acc + parseNum(i.cantidad) * parseNum(i.precio_unitario), 0
   );
+  const subtotal = subtotalItems + parseNum(totalEspejo);
   const gastosGenerales = subtotal * (ggPct / 100);
   const utilidad = subtotal * (utilPct / 100);
   const neto = subtotal + gastosGenerales + utilidad;
   const iva = neto * 0.19;
   const total = neto + iva;
-  return { subtotal, gastosGenerales, utilidad, neto, iva, total };
+  return { subtotal, subtotalItems, gastosGenerales, utilidad, neto, iva, total };
 };
 
 // Calcular total de compras
