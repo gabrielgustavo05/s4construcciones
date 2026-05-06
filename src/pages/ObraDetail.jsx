@@ -601,7 +601,7 @@ export default function ObraDetail() {
                             style={{ width:90, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
                           />
                         </td>
-                        <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
+                        <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(Number(p.cantidad || 0) * Number(p.precio_unitario || 0))}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
                             <button className="btn btn-s btn-sm" title="Materiales requeridos" onClick={(e) => { e.stopPropagation(); setSelectedPartida(p); }}>📦</button>
