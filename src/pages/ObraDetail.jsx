@@ -412,7 +412,7 @@ export default function ObraDetail() {
                               onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
                               onClick={(e) => e.stopPropagation()}
                               placeholder="0.0"
-                              style={{ width:80, background:'rgba(255,255,255,0.03)', border:'1px solid transparent', color:'var(--accent)', fontWeight:800, fontSize:12, padding:'2px 4px', borderRadius:4 }}
+                              style={{ width:80, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--accent)', fontWeight:800, fontSize:12, padding:'2px 6px', borderRadius:'var(--r2)' }}
                             />
                           </td>
                           <td colSpan="6"><strong>{p.descripcion}</strong></td>
@@ -436,7 +436,7 @@ export default function ObraDetail() {
                              onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
                              onClick={(e) => e.stopPropagation()}
                              placeholder="0.0"
-                             style={{ width:80, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', color:'inherit', fontSize:12, padding:'2px 4px', borderRadius:4 }}
+                             style={{ width:80, background:'var(--bg3)', border:'1px solid var(--border)', color:'inherit', fontSize:12, padding:'2px 6px', borderRadius:'var(--r2)' }}
                            />
                         </td>
                         <td><strong>{p.descripcion}</strong></td>
