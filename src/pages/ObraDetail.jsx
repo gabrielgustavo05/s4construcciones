@@ -379,9 +379,9 @@ export default function ObraDetail() {
     if (field === 'cantidad' || field === 'precio_unitario') {
       finalVal = parseNum(value);
       // Alerta diagnóstica temporal para ver qué está pasando en vivo
-      alert(`Enviando a base de datos: ${field} = ${finalVal}`);
+      console.log(`Enviando: ${field} = ${finalVal}`);
     }
-    const { error } = await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
+    const { data: updated, error } = await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId).select();
     if (error) {
       alert('Error al guardar cambio: ' + error.message);
     } else {
