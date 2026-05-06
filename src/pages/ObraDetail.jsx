@@ -25,6 +25,9 @@ export default function ObraDetail() {
   const [showResumenCompras, setShowResumenCompras] = useState(false);
   const [presupuestoItems, setPresupuestoItems] = useState([]);
 
+  const [selectedPartida, setSelectedPartida] = useState(null);
+  const [newMaterial, setNewMaterial] = useState({ descripcion:'', unidad:'UN', cantidad:'' });
+
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*, obra_padre:obra_padre_id(nombre)').eq('id', id).single();
     setObra(o);
@@ -37,6 +40,9 @@ export default function ObraDetail() {
     const table = tables[tabIndex - 1];
     
     let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true });
+    if (table === 'presupuesto_items') {
+      query = supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true });
+    }
     if (table === 'asistencia') {
       query = supabase.from('asistencia').select('*, trabajador:trabajador_id(*)').eq('obra_id', id).order('fecha', { ascending: false });
     }
@@ -51,7 +57,7 @@ export default function ObraDetail() {
 
     // Al cargar presupuesto, también traer compras para cotejo de sobrecompra
     if (table === 'presupuesto_items') {
-      const { data: cmp } = await supabase.from('compras').select('presupuesto_item_id, cantidad').eq('obra_id', id);
+      const { data: cmp } = await supabase.from('compras').select('presupuesto_item_id, cantidad, descripcion').eq('obra_id', id);
       setData(d => ({ ...d, compras_cotejo: cmp || [] }));
     }
 
@@ -68,7 +74,7 @@ export default function ObraDetail() {
   useEffect(() => { fetchTab(tab); }, [tab, fetchTab]);
 
   useEffect(() => {
-    if (tab === 3) {
+    if (tab === 1 || tab === 3) {
       const fetchMaterialesGlobales = async () => {
         const { data } = await supabase.from('compras').select('descripcion');
         if (data) {
@@ -110,6 +116,12 @@ export default function ObraDetail() {
     fetchTab(1);
   };
 
+  const deleteAllPresupuesto = async () => {
+    if (!confirm('¿Estás SEGURO de eliminar TODO el presupuesto de esta obra? Esta acción borrará todas las partidas y sus listas de materiales requeridos. ¡No se puede deshacer!')) return;
+    await supabase.from('presupuesto_items').delete().eq('obra_id', id);
+    fetchTab(1);
+  };
+
   // ── Agregar ítem presupuesto ──
   const [newItem, setNewItem] = useState({ codigo:'', descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'' });
   const addItem = async (e) => {
@@ -128,6 +140,24 @@ export default function ObraDetail() {
     await supabase.from('compras').insert([payload]);
     setNewCompra({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today(), presupuesto_item_id: '' });
     fetchTab(3);
+  };
+
+  const addMaterialRequerido = async (e) => {
+    e.preventDefault();
+    const payload = { ...newMaterial, presupuesto_item_id: selectedPartida.id, cantidad: Number(newMaterial.cantidad) };
+    const { data: inserted, error } = await supabase.from('presupuesto_materiales').insert([payload]).select().single();
+    if (!error) {
+       setSelectedPartida(prev => ({ ...prev, presupuesto_materiales: [...(prev.presupuesto_materiales || []), inserted] }));
+       setNewMaterial({ descripcion:'', unidad:'UN', cantidad:'' });
+    } else alert(error.message);
+  };
+
+  const deleteMaterialRequerido = async (matId) => {
+    if (!confirm('¿Eliminar material requerido?')) return;
+    const { error } = await supabase.from('presupuesto_materiales').delete().eq('id', matId);
+    if (!error) {
+      setSelectedPartida(prev => ({ ...prev, presupuesto_materiales: prev.presupuesto_materiales.filter(m => m.id !== matId) }));
+    }
   };
 
   const addAsistencia = async (e) => {
@@ -244,6 +274,7 @@ export default function ObraDetail() {
                 🤖 Importar Excel AI
                 <input type="file" accept=".xlsx,.xls,.csv" style={{ display:'none' }} onChange={handleExcelFile}/>
               </label>
+              <button className="btn btn-d btn-sm" onClick={deleteAllPresupuesto}>🗑 Vaciar Presupuesto</button>
             </div>
           </div>
 
@@ -324,34 +355,44 @@ export default function ObraDetail() {
                   ) : data.presupuesto.map((p,i) => {
                     const tot = p.cantidad * p.precio_unitario;
                     const isTitle = (p.cantidad === 0 && p.precio_unitario === 0 && p.codigo);
-                    // Calcular sobrecompra
-                    const cantComprada = data.compras_cotejo
-                      .filter(c => c.presupuesto_item_id === p.id)
-                      .reduce((s, c) => s + (c.cantidad || 0), 0);
-                    const sobrecompra = !isTitle && p.cantidad > 0 && cantComprada > p.cantidad;
+                    
+                    let sobrecompra = false;
+                    let cantComprada = 0;
+                    const comprasPartida = data.compras_cotejo.filter(c => c.presupuesto_item_id === p.id);
+                    cantComprada = comprasPartida.reduce((s, c) => s + (c.cantidad || 0), 0);
+                    
+                    if (p.presupuesto_materiales && p.presupuesto_materiales.length > 0) {
+                      p.presupuesto_materiales.forEach(mat => {
+                        const compradoMat = comprasPartida.filter(c => c.descripcion.toLowerCase() === mat.descripcion.toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+                        if (compradoMat > mat.cantidad) sobrecompra = true;
+                      });
+                    } else {
+                      sobrecompra = !isTitle && p.cantidad > 0 && cantComprada > p.cantidad;
+                    }
+
                     if (isTitle) {
                       return (
                         <tr key={p.id} style={{ background: 'var(--bg3)' }}>
                           <td className="ts tx">{i+1}</td>
                           <td className="ts" style={{ color: 'var(--accent)', fontWeight: 800 }}>{p.codigo}</td>
                           <td colSpan="6"><strong>{p.descripcion}</strong></td>
-                          <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('presupuesto_items', p.id)}>✕</button></td>
+                          <td><button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button></td>
                         </tr>
                       );
                     }
                     return (
-                      <tr key={p.id} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined }}>
+                      <tr key={p.id} onClick={() => setSelectedPartida(p)} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
                         <td className="ts tx">{i+1}</td>
                         <td className="ts tx">{p.codigo||'-'}</td>
                         <td><strong>{p.descripcion}</strong></td>
                         <td><span style={{ background:'var(--bg4)',padding:'2px 6px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{p.unidad}</span></td>
                         <td className="mono" style={{ textAlign:'right' }}>{p.cantidad}</td>
                         <td className="mono" style={{ textAlign:'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
-                          {cantComprada > 0 ? cantComprada : '-'}{sobrecompra && ` ⚠️`}
+                          {(p.presupuesto_materiales && p.presupuesto_materiales.length > 0) ? 'Sub-lista' : (cantComprada > 0 ? cantComprada : '-')}{sobrecompra && ` ⚠️`}
                         </td>
                         <td className="mono" style={{ textAlign:'right' }}>{clp(p.precio_unitario)}</td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
-                        <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('presupuesto_items', p.id)}>✕</button></td>
+                        <td><button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id); }}>✕</button></td>
                       </tr>
                     );
                   })}
@@ -722,6 +763,40 @@ export default function ObraDetail() {
           </div>
           <div className="modal-actions">
             <button className="btn btn-s" onClick={() => setShowResumenCompras(false)}>Cerrar</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Sub-Lista de Materiales Requeridos */}
+      {selectedPartida && (
+        <Modal title={`📦 Materiales Requeridos — ${selectedPartida.descripcion}`} onClose={() => { setSelectedPartida(null); fetchTab(1); }}>
+          <form onSubmit={addMaterialRequerido} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 70px 100px 44px',gap:8,alignItems:'end' }}>
+              <div className="form-group" style={{ margin:0 }}>
+                <label>Descripción *</label>
+                <input required list="materiales-list" value={newMaterial.descripcion} onChange={e=>setNewMaterial({...newMaterial,descripcion:e.target.value})}/>
+              </div>
+              <div className="form-group" style={{ margin:0 }}><label>Und</label><input value={newMaterial.unidad} onChange={e=>setNewMaterial({...newMaterial,unidad:e.target.value})}/></div>
+              <div className="form-group" style={{ margin:0 }}><label>Cant.</label><input type="number" step="0.01" required value={newMaterial.cantidad} onChange={e=>setNewMaterial({...newMaterial,cantidad:e.target.value})}/></div>
+              <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
+            </div>
+          </form>
+          <div className="tw" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            <table>
+              <thead><tr><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cantidad</th><th></th></tr></thead>
+              <tbody>
+                {(!selectedPartida.presupuesto_materiales || selectedPartida.presupuesto_materiales.length === 0) ? (
+                  <tr><td colSpan="4" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>No hay materiales específicos en esta partida.</td></tr>
+                ) : selectedPartida.presupuesto_materiales.map(m => (
+                  <tr key={m.id}>
+                    <td><strong>{m.descripcion}</strong></td>
+                    <td className="ts tx">{m.unidad}</td>
+                    <td className="mono" style={{ textAlign:'right' }}>{m.cantidad}</td>
+                    <td><button className="btn btn-d btn-sm" onClick={() => deleteMaterialRequerido(m.id)}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Modal>
       )}

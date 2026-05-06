@@ -11,7 +11,7 @@ export default function Alertas() {
   const fetchAlertas = useCallback(async () => {
     const { data: obras } = await supabase
       .from('obras')
-      .select(`id, nombre, estado, presupuesto_items(id, descripcion, cantidad, precio_unitario), compras(cantidad, precio_unitario, presupuesto_item_id), cotizaciones(estado), estados_pago(estado, monto_bruto, retencion_pct, fecha_pago_estimada), hitos(estado, nombre, fecha_fin_plan)`)
+      .select(`id, nombre, estado, presupuesto_items(id, descripcion, cantidad, precio_unitario, presupuesto_materiales(descripcion, cantidad)), compras(cantidad, precio_unitario, presupuesto_item_id, descripcion), cotizaciones(estado), estados_pago(estado, monto_bruto, retencion_pct, fecha_pago_estimada), hitos(estado, nombre, fecha_fin_plan)`)
       .neq('estado', 'Finalizada');
 
     if (!obras) { setLoading(false); return; }
@@ -49,14 +49,24 @@ export default function Alertas() {
         list.push({ ico: '⚠️', niv: 'w', tit: `Hito atrasado: ${h.nombre}`, desc: `Obra: ${o.nombre} · Fin plan: ${h.fecha_fin_plan || '-'}`, oId: o.id });
       });
 
-      // Sobrecompra por partida
-      (o.presupuesto_items || []).filter(p => p.cantidad > 0).forEach(p => {
-        const comprado = (o.compras || [])
-          .filter(c => c.presupuesto_item_id === p.id)
-          .reduce((s, c) => s + Number(c.cantidad), 0);
-        if (comprado > p.cantidad) {
-          const exceso = comprado - p.cantidad;
-          list.push({ ico: '📦', niv: 'c', tit: `Sobrecompra: ${p.descripcion}`, desc: `Obra: ${o.nombre} · Presupuestado: ${p.cantidad} · Comprado: ${comprado} · Exceso: +${exceso}`, oId: o.id });
+      // Sobrecompra por partida / material
+      (o.presupuesto_items || []).forEach(p => {
+        const comprasPartida = (o.compras || []).filter(c => c.presupuesto_item_id === p.id);
+        
+        if (p.presupuesto_materiales && p.presupuesto_materiales.length > 0) {
+          p.presupuesto_materiales.forEach(mat => {
+            const compradoMat = comprasPartida.filter(c => c.descripcion.toLowerCase() === mat.descripcion.toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+            if (compradoMat > mat.cantidad) {
+               const exceso = compradoMat - mat.cantidad;
+               list.push({ ico: '📦', niv: 'c', tit: `Sobrecompra: ${mat.descripcion}`, desc: `Obra: ${o.nombre} · Partida: ${p.descripcion} · Requerido: ${mat.cantidad} · Comprado: ${compradoMat} · Exceso: +${exceso}`, oId: o.id });
+            }
+          });
+        } else if (p.cantidad > 0) {
+          const comprado = comprasPartida.reduce((s, c) => s + Number(c.cantidad), 0);
+          if (comprado > p.cantidad) {
+            const exceso = comprado - p.cantidad;
+            list.push({ ico: '📦', niv: 'c', tit: `Sobrecompra: ${p.descripcion}`, desc: `Obra: ${o.nombre} · Presupuestado: ${p.cantidad} · Comprado: ${comprado} · Exceso: +${exceso}`, oId: o.id });
+          }
         }
       });
     }

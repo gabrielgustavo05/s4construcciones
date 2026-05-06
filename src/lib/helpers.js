@@ -98,7 +98,7 @@ export const parseExcel = async (file) => {
           unit:  ['unidad', 'und', 'um', 'unid', 'u.m'],
           qty:   ['cantidad', 'cant', 'qty', 'cantidad total'],
           // precio: primero buscar específico para evitar confundir con "precio total"
-          price: ['precio unit', 'p. unit', 'p.unit', 'p.u.', 'p. u.', 'pu', 'p/u', 'v.unit', 'valor unit', 'costo unit', 'precio unitario', 'valor unitario', 'costo unitario'],
+          price: ['precio', 'precio unit', 'p. unit', 'p.unit', 'p.u.', 'p. u.', 'pu', 'p/u', 'v.unit', 'valor unit', 'costo unit', 'precio unitario', 'valor unitario', 'costo unitario'],
           total: ['precio total', 'precio fin', 'precio final', 'importe', 'total', 'subtotal', 'monto total', 'monto'],
         };
 
