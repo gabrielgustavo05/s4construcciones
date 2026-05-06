@@ -51,7 +51,7 @@ export default function ObraDetail() {
     const { data: rows } = await query;
     let sortedRows = rows || [];
     if (table === 'presupuesto_items') {
-      sortedRows.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '', undefined, { numeric: true, sensitivity: 'base' }));
+      sortedRows.sort((a, b) => (a.codigo || '').trim().localeCompare((b.codigo || '').trim(), undefined, { numeric: true, sensitivity: 'base' }));
     }
     setData(d => ({ ...d, [table === 'presupuesto_items' ? 'presupuesto' : table]: sortedRows }));
 
