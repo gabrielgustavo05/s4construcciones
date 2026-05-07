@@ -1238,15 +1238,61 @@ select option {
 .excel-table {
   border-spacing: 0;
   border-collapse: separate;
+  table-layout: fixed;
 }
 
 .excel-table td {
   padding: 0 !important;
   border-right: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .excel-table th {
   border-right: 1px solid var(--border);
+}
+
+.resizable-table th {
+  position: relative;
+  user-select: none;
+}
+
+.resizable-table th span:first-child {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+}
+
+.col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.col-resizer:hover::after,
+.is-resizing-column .col-resizer::after {
+  background: var(--accent);
+}
+
+.is-resizing-column {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 .excel-input {

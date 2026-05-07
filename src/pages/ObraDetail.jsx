@@ -6,6 +6,16 @@ import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
 const TABS = ['Resumen','Presupuesto','RRHH','Compras','Cotizaciones','Subcontratos','Hitos','Estados de Pago'];
+const PRESUPUESTO_COLUMNS = [
+  { key: 'n', label: 'N°', width: 52, minWidth: 42 },
+  { key: 'codigo', label: 'Código', width: 90, minWidth: 70 },
+  { key: 'descripcion', label: 'Descripción', width: 360, minWidth: 180 },
+  { key: 'unidad', label: 'Und', width: 70, minWidth: 55 },
+  { key: 'cantidad', label: 'Cant. Pres.', width: 110, minWidth: 85, align: 'right' },
+  { key: 'comprado', label: 'Comprado', width: 110, minWidth: 85, align: 'right' },
+  { key: 'precio_unitario', label: 'P. Unitario', width: 120, minWidth: 90, align: 'right' },
+  { key: 'total', label: 'Total', width: 130, minWidth: 100, align: 'right' },
+];
 
 export default function ObraDetail() {
   const { id } = useParams(); const navigate = useNavigate();
@@ -28,6 +38,9 @@ export default function ObraDetail() {
   const [uploading, setUploading] = useState(false);
   const [totalEspejo, setTotalEspejo] = useState(0);
   const [presupuestoItems, setPresupuestoItems] = useState([]);
+  const [presupuestoColWidths, setPresupuestoColWidths] = useState(() =>
+    Object.fromEntries(PRESUPUESTO_COLUMNS.map(col => [col.key, col.width]))
+  );
 
   const [selectedPartida, setSelectedPartida] = useState(null);
   const [editPartidaForm, setEditPartidaForm] = useState(null);
@@ -437,10 +450,34 @@ export default function ObraDetail() {
     }
   };
 
+  const startColumnResize = (e, column) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startWidth = presupuestoColWidths[column.key] || column.width;
+
+    const onPointerMove = (moveEvent) => {
+      const nextWidth = Math.max(column.minWidth, startWidth + moveEvent.clientX - startX);
+      setPresupuestoColWidths(prev => ({ ...prev, [column.key]: nextWidth }));
+    };
+
+    const onPointerUp = () => {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.body.classList.remove('is-resizing-column');
+    };
+
+    document.body.classList.add('is-resizing-column');
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+  };
+
   if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
   const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia) + (data.gasto_espejo || 0);
+  const presupuestoTableWidth = PRESUPUESTO_COLUMNS.reduce((sum, col) => sum + (presupuestoColWidths[col.key] || col.width), 0);
 
   return (
     <div className="detail-overlay">
@@ -562,8 +599,28 @@ export default function ObraDetail() {
 
           <div className="card" style={{ padding:0 }}>
             <div className="tw" onPaste={handlePaste}>
-              <table className="excel-table">
-                <thead><tr><th>N°</th><th>Código</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cant. Pres.</th><th style={{ textAlign:'right' }}>Comprado</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th></th></tr></thead>
+              <table className="excel-table resizable-table" style={{ width: presupuestoTableWidth, minWidth: presupuestoTableWidth }}>
+                <colgroup>
+                  {PRESUPUESTO_COLUMNS.map(col => (
+                    <col key={col.key} style={{ width: presupuestoColWidths[col.key] || col.width }} />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr>
+                    {PRESUPUESTO_COLUMNS.map(col => (
+                      <th key={col.key} style={{ textAlign: col.align || 'left' }}>
+                        <span>{col.label}</span>
+                        <span
+                          className="col-resizer"
+                          role="separator"
+                          aria-orientation="vertical"
+                          title="Arrastra para cambiar el ancho"
+                          onPointerDown={(e) => startColumnResize(e, col)}
+                        />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
                 <tbody>
                   {data.presupuesto.length === 0 ? (
                     <tr><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Agrega manualmente o importa desde Excel.</td></tr>
@@ -624,7 +681,7 @@ export default function ObraDetail() {
                             onKeyDown={(e) => handleGridKey(e, p.id, 'unidad', i)}
                             onClick={(e) => e.stopPropagation()}
                             className="excel-input center"
-                            style={{ width: 45, fontSize: 10 }}
+                            style={{ fontSize: 10 }}
                           />
                         </td>
                         <td className="mono" style={{ textAlign:'right' }}>
@@ -638,7 +695,6 @@ export default function ObraDetail() {
                             onKeyDown={(e) => handleGridKey(e, p.id, 'cantidad', i)}
                             onClick={(e) => e.stopPropagation()}
                             className="excel-input right"
-                            style={{ width: 70 }}
                           />
                         </td>
                         <td className="mono" style={{ textAlign:'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
@@ -655,7 +711,6 @@ export default function ObraDetail() {
                             onKeyDown={(e) => handleGridKey(e, p.id, 'precio_unitario', i)}
                             onClick={(e) => e.stopPropagation()}
                             className="excel-input right"
-                            style={{ width: 90 }}
                           />
                         </td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
