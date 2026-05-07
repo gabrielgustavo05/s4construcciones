@@ -264,9 +264,35 @@ export default function ObraDetail() {
     fetchTab(1);
   };
 
+  const detachMaterialsFromItems = async (itemIds) => {
+    if (!itemIds.length) return true;
+
+    await supabase
+      .from('presupuesto_materiales')
+      .update({ obra_id: id })
+      .in('presupuesto_item_id', itemIds);
+
+    const { error } = await supabase
+      .from('presupuesto_materiales')
+      .update({ presupuesto_item_id: null })
+      .in('presupuesto_item_id', itemIds);
+
+    if (error) {
+      alert('No se pudo dejar los materiales sin asignar. Revisa que la migración de presupuesto_materiales esté aplicada antes de vaciar.');
+      return false;
+    }
+
+    return true;
+  };
+
   const deleteAllPresupuesto = async () => {
-    if (!confirm('¿Estás SEGURO de eliminar TODO el presupuesto de esta obra? Esta acción borrará todas las partidas y sus listas de materiales requeridos. ¡No se puede deshacer!')) return;
-    await supabase.from('presupuesto_items').delete().eq('obra_id', id);
+    if (!confirm('¿Estás SEGURO de vaciar TODO el presupuesto de esta obra? Las partidas se eliminarán, pero los materiales quedarán sin asignar.')) return;
+    const itemIds = data.presupuesto.map(item => item.id).filter(Boolean);
+    const materialsDetached = await detachMaterialsFromItems(itemIds);
+    if (!materialsDetached) return;
+
+    const { error } = await supabase.from('presupuesto_items').delete().eq('obra_id', id);
+    if (error) return alert('Error al vaciar presupuesto: ' + error.message);
     fetchTab(1);
   };
 
@@ -322,7 +348,14 @@ export default function ObraDetail() {
   const deleteBudgetRowFromMenu = async (row) => {
     setBudgetContextMenu(null);
     if (!row) return;
-    await deleteRow('presupuesto_items', row.id);
+    if (!confirm('¿Eliminar fila? Los materiales asociados quedarán sin asignar.')) return;
+
+    const materialsDetached = await detachMaterialsFromItems([row.id]);
+    if (!materialsDetached) return;
+
+    const { error } = await supabase.from('presupuesto_items').delete().eq('id', row.id);
+    if (error) return alert('Error al eliminar fila: ' + error.message);
+    fetchTab(1);
   };
 
   const handleUpdatePartida = async (e) => {
