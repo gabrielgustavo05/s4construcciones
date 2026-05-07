@@ -29,7 +29,7 @@ export const calcPresupuesto = (items, ggPct = 15, utilPct = 10, totalEspejo = 0
   const gastosGenerales = subtotal * (ggPct / 100);
   const utilidad = subtotal * (utilPct / 100);
   const neto = subtotal + gastosGenerales + utilidad;
-  const 19iva = neto * 0.19;
+  const iva = neto * 0.19;
   const total = neto + iva;
   return { subtotal, subtotalItems, gastosGenerales, utilidad, neto, iva, total };
 };
