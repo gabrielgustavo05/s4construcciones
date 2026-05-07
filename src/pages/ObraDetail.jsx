@@ -36,6 +36,9 @@ const getNextChildCodigo = (baseCodigo, rows) => {
   return `${base}.${maxChild + 1}`;
 };
 
+const getDefaultPresupuestoColWidths = () =>
+  Object.fromEntries(PRESUPUESTO_COLUMNS.map(col => [col.key, col.width]));
+
 export default function ObraDetail() {
   const { id } = useParams(); const navigate = useNavigate();
   const [obra, setObra] = useState(null);
@@ -57,9 +60,7 @@ export default function ObraDetail() {
   const [uploading, setUploading] = useState(false);
   const [totalEspejo, setTotalEspejo] = useState(0);
   const [presupuestoItems, setPresupuestoItems] = useState([]);
-  const [presupuestoColWidths, setPresupuestoColWidths] = useState(() =>
-    Object.fromEntries(PRESUPUESTO_COLUMNS.map(col => [col.key, col.width]))
-  );
+  const [presupuestoColWidths, setPresupuestoColWidths] = useState(getDefaultPresupuestoColWidths);
 
   const [selectedPartida, setSelectedPartida] = useState(null);
   const [editPartidaForm, setEditPartidaForm] = useState(null);
@@ -172,6 +173,28 @@ export default function ObraDetail() {
 
   useEffect(() => { fetchObra(); }, [fetchObra]);
   useEffect(() => { fetchTab(tab); }, [tab, fetchTab]);
+
+  useEffect(() => {
+    const savedWidths = localStorage.getItem(`obra-${id}-presupuesto-col-widths`);
+    if (!savedWidths) {
+      setPresupuestoColWidths(getDefaultPresupuestoColWidths());
+      return;
+    }
+
+    try {
+      const parsedWidths = JSON.parse(savedWidths);
+      setPresupuestoColWidths({
+        ...getDefaultPresupuestoColWidths(),
+        ...parsedWidths
+      });
+    } catch {
+      setPresupuestoColWidths(getDefaultPresupuestoColWidths());
+    }
+  }, [id]);
+
+  useEffect(() => {
+    localStorage.setItem(`obra-${id}-presupuesto-col-widths`, JSON.stringify(presupuestoColWidths));
+  }, [id, presupuestoColWidths]);
 
   useEffect(() => {
     if (tab === 1 || tab === 3) {
