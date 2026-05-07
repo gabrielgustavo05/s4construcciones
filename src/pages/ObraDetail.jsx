@@ -671,7 +671,8 @@ export default function ObraDetail() {
                           })()}
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
