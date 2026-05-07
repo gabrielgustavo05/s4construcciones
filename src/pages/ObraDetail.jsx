@@ -7,7 +7,7 @@ import Modal from '../components/Modal';
 
 const TABS = ['Resumen','Presupuesto','RRHH','Compras','Cotizaciones','Subcontratos','Hitos','Estados de Pago'];
 const PRESUPUESTO_COLUMNS = [
-  { key: 'n', label: 'N°', width: 52, minWidth: 42 },
+  { key: 'n', label: 'N°', width: 52, minWidth: 42, align: 'center' },
   { key: 'codigo', label: 'Código', width: 90, minWidth: 70 },
   { key: 'descripcion', label: 'Descripción', width: 360, minWidth: 180 },
   { key: 'unidad', label: 'Und', width: 70, minWidth: 55 },
@@ -697,7 +697,7 @@ export default function ObraDetail() {
                         onContextMenu={(e) => addItemAtPosition(e, i)}
                         style={{ background: isTitle ? 'var(--bg3)' : sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}
                       >
-                        <td className="ts tx">{i+1}</td>
+                        <td className="ts tx" style={{ textAlign: 'center' }}>{i+1}</td>
                         <td className="ts">
                           <input 
                             data-id={p.id}
