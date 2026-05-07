@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, parseExcel, parseNum, cleanNum } from '../lib/helpers';
 import Badge from '../components/Badge';
@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 const TABS = ['Resumen','Presupuesto','RRHH','Compras','Cotizaciones','Subcontratos','Hitos','Estados de Pago'];
 
 export default function ObraDetail() {
-  const { id } = useParams();
+  const { id } = useParams(); const navigate = useNavigate();
   const [obra, setObra] = useState(null);
   const [tab, setTab] = useState(0);
   const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [] });
@@ -1318,8 +1318,6 @@ export default function ObraDetail() {
         </Modal>
       )}
 
-      {/* Modales anteriores... */}
-      {/* ... */}
 
     </div>
   );
