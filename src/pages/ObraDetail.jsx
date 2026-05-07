@@ -782,6 +782,7 @@ export default function ObraDetail() {
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => handleGridKey(e, p.id, 'descripcion', i)}
                             onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}
                             placeholder="Descripción de la partida"
                             className="excel-input"
                             style={{ fontWeight: isTitle ? 800 : 500, width: '100%' }}
