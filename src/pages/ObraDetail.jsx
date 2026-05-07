@@ -703,7 +703,6 @@ export default function ObraDetail() {
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* ── TAB 2: RRHH - ASISTENCIA ── */}
