@@ -444,62 +444,6 @@ export default function ObraDetail() {
 
   return (
     <div className="detail-overlay">
-      {/* Header */}
-      <div className="detail-header">
-        <Link to="/obras" className="btn btn-s btn-sm">← Volver</Link>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>{obra.nombre}</div>
-          <div className="ts tx">{obra.tipo} · {obra.n_contrato || 'Sin contrato'} · ITO: {obra.ito || '-'}</div>
-        </div>
-        <Badge estado={obra.estado}/>
-      </div>
-
-      {/* Tabs */}
-      <div className="tabs">
-        {TABS.map((t, i) => (
-          <button key={i} className={`tab-btn ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
-        ))}
-        <button className={`tab-btn ${tab === 3 ? 'active' : ''}`} onClick={() => setTab(3)}>🛒 Compras</button>
-        <button className={`tab-btn ${tab === 4 ? 'active' : ''}`} onClick={() => setTab(4)}>📋 Solicitudes</button>
-        <button className={`tab-btn ${tab === 0 ? 'active' : ''}`} onClick={() => setTab(0)}>📊 Resumen</button>
-      </div>
-
-      {/* ── TAB 0: RESUMEN ── */}
-      {tab === 0 && (
-        <div className="tab-panel active">
-          <div className="stats-grid">
-            {[
-              ['amber','Avance', `${obra.avance||0}%`],
-              ['blue','Presupuesto', clp(totalPres)],
-              ['green','Gasto real', clp(totalComp)],
-              [totalPres - totalComp >= 0 ? 'green':'red','Resultado', clp(totalPres - totalComp)],
-              ['teal','Superficie', `${(obra.superficie||0).toLocaleString('es-CL')} m²`],
-            ].map(([c,l,v]) => (
-              <div className={`stat-card ${c}`} key={l}>
-                <span className="stat-label">{l}</span>
-                <span className="stat-value" style={{ fontSize:15 }}>{v}</span>
-              </div>
-            ))}
-          </div>
-          <div className="g2">
-            <div className="card">
-              <div className="fb">
-                <div className="card-title" style={{ margin:0 }}>📋 Datos</div>
-                <button className="btn btn-s btn-sm" onClick={() => { setEditForm(obra); setShowEditObra(true); }}>✏️ Editar</button>
-              </div>
-              <div style={{ marginTop: 14 }}>
-                {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° OC - Contrato',obra.n_contrato]].map(([k,v]) => (
-                  <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v||'-'}</span></div>
-                ))}
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-title">📝 Descripción</div>
-              <div className="nota-box">{obra.descripcion||'Sin descripción.'}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div className="detail-header">
@@ -1246,50 +1190,6 @@ export default function ObraDetail() {
 
           <div className="sol-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
             {(!data.solicitudes || data.solicitudes.length === 0) ? (
-              <div style={{ gridColumn:'1/-1', textAlign:'center', padding:24, color:'var(--text3)' }}>No hay solicitudes de material.</div>
-            ) : (
-              data.solicitudes.map(s => (
-                <div key={s.id} className="card" style={{ cursor:'pointer' }}>
-                  <div className="card-title">{s.titulo}</div>
-                  <Badge estado={s.urgencia}/>
-                  {s.foto_pedido_url && <img src={s.foto_pedido_url} alt="Foto" style={{ width:'100%', borderRadius:'var(--r2)', marginTop:12 }} />}
-                  <div className="ts tx" style={{ marginTop:8 }}>Estado: {s.estado}</div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {showSolicitudModal && (
-            <Modal title="📸 Nueva Solicitud de Material" onClose={() => setShowSolicitudModal(false)}>
-              <form onSubmit={handleUploadPedido} className="form-column">
-                <div className="form-group">
-                  <label>Título de solicitud</label>
-                  <input value={newSolicitud.titulo} onChange={e => setNewSolicitud({...newSolicitud, titulo: e.target.value})} placeholder="Ej: Bloques de hormigón" />
-                </div>
-                <div className="form-group">
-                  <label>Urgencia</label>
-                  <select value={newSolicitud.urgencia} onChange={e => setNewSolicitud({...newSolicitud, urgencia: e.target.value})}>
-                    <option>Normal</option>
-                    <option>Urgente</option>
-                    <option>Crítica</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Foto de lista - Pedido</label>
-                  <input type="file" accept="image/*" onChange={handleUploadPedido} required />
-                </div>
-                <div className="modal-actions">
-                  <button type="button" className="btn btn-s" onClick={() => setShowSolicitudModal(false)}>Cancelar</button>
-                  <button type="submit" className="btn btn-a" disabled={uploading}>{uploading ? 'Subiendo...' : 'Subir'}</button>
-                </div>
-              </form>
-            </Modal>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
               <div className="card" style={{ gridColumn:'1/-1', textAlign:'center', padding:40, color:'var(--text3)' }}>No hay solicitudes pendientes.</div>
             ) : data.solicitudes.map(s => {
               const hrs = getHorasTranscurridas(s.created_at);
