@@ -29,7 +29,7 @@ export const calcPresupuesto = (items, ggPct = 15, utilPct = 10, totalEspejo = 0
   const gastosGenerales = subtotal * (ggPct / 100);
   const utilidad = subtotal * (utilPct / 100);
   const neto = subtotal + gastosGenerales + utilidad;
-  const iva = neto * 0.19;
+  const 19iva = neto * 0.19;
   const total = neto + iva;
   return { subtotal, subtotalItems, gastosGenerales, utilidad, neto, iva, total };
 };
@@ -136,13 +136,12 @@ export const parseExcel = async (file) => {
         let colMap = { num: -1, desc: -1, unit: -1, qty: -1, price: -1, total: -1 };
 
         const keywords = {
-          num:   ['n°', 'nro', 'item', 'ítem', 'cod', 'código', 'codigo', '#'],
-          desc:  ['descripcion', 'descripción', 'nombre', 'partida', 'detalle', 'concepto', 'glosa'],
-          unit:  ['unidad', 'und', 'um', 'unid', 'u.m'],
-          qty:   ['cantidad', 'cant', 'qty', 'cantidad total'],
-          // precio: primero buscar específico para evitar confundir con "precio total"
-          price: ['precio', 'precio unit', 'p. unit', 'p.unit', 'p.u.', 'p. u.', 'pu', 'p/u', 'v.unit', 'valor unit', 'costo unit', 'precio unitario', 'valor unitario', 'costo unitario'],
-          total: ['precio total', 'precio fin', 'precio final', 'importe', 'total', 'subtotal', 'monto total', 'monto'],
+          num:   ['n°', 'nro', 'item', 'ítem', 'cod', 'código', 'codigo', '#', 'pos'],
+          desc:  ['descripcion', 'descripción', 'nombre', 'partida', 'detalle', 'concepto', 'glosa', 'actividad'],
+          unit:  ['unidad', 'und', 'um', 'unid', 'u.m', 'uni'],
+          qty:   ['cantidad', 'cant', 'qty', 'cantidad total', 'volumen'],
+          price: ['precio general', 'p.u', 'p.u.', 'pu', 'p/u', 'p.unit', 'p. unit', 'p.unitario', 'p. unitario', 'unitario', 'v.u', 'v.u.', 'v.unit', 'valor unit', 'precio unit', 'precio unitario', 'costo unit', 'costo unitario', 'valor unitario', 'precio', 'v. general'],
+          total: ['total', 'precio total', 'total partida', 'monto total', 'subtotal', 'total item', 'importe'],
         };
 
         for (let r = 0; r < Math.min(20, raw.length); r++) {
@@ -288,4 +287,3 @@ export const parsePersonalExcel = async (file) => {
     reader.readAsArrayBuffer(file);
   });
 };
-
