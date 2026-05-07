@@ -725,6 +725,16 @@ export default function ObraDetail() {
                               return <span style={{color:'var(--orange)', fontSize: 10}}>Falta: C:{c} P:{u}</span>;
                             }
                             if (res === 0 && !isTitle) return clp(0);
+                            return clp(res);
+                          })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {/* Resumen financiero */}
             <div style={{ background:'var(--bg3)',padding:'14px 18px',borderTop:'1px solid var(--border)' }}>
               <div style={{ display:'flex',justifyContent:'flex-end',gap:60 }}>
