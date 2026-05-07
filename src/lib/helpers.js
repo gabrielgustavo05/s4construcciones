@@ -72,29 +72,50 @@ export const cleanNum = (val) => {
   let s = String(val).trim();
   
   // Eliminar cualquier carácter que no sea número, punto o coma (ej: $, espacios, letras, .-)
-  s = s.replace(/[^0-9.,]/g, '');
+  s = s.replace(/[^0-9.,-]/g, '');
   
-  // Caso 1: Tiene coma. La coma es el decimal. Borramos los puntos (miles).
-  if (s.includes(',')) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    // Caso 2: No tiene coma, pero tiene punto(s).
-    const dots = (s.match(/\./g) || []).length;
-    if (dots > 1) {
-      // Más de un punto = Miles (ej: 1.000.000)
-      s = s.replace(/\./g, '');
-    } else if (dots === 1) {
-      // Un solo punto. ¿Es decimal (114.04) o miles (22.600)?
-      const parts = s.split('.');
-      if (parts[1].length === 3) {
-        // Si tiene 3 dígitos después del punto, es miles.
-        s = s.replace(/\./g, '');
-      }
-      // Si no, es decimal (lo dejamos como está)
+  if (!s || s === '-' || s === '.' || s === ',') return 0;
+
+  const isNegative = s.startsWith('-');
+  s = s.replace(/-/g, '');
+
+  const normalizeSingleSeparator = (value, separator) => {
+    const parts = value.split(separator);
+    if (parts.length > 2) {
+      const last = parts[parts.length - 1];
+      return last.length === 3
+        ? parts.join('')
+        : `${parts.slice(0, -1).join('')}.${last}`;
     }
+
+    const [before, after = ''] = parts;
+    if (!after) return before;
+    if (after.length === 3 && before.length <= 3) return `${before}${after}`;
+    return `${before}.${after}`;
+  };
+
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+
+  if (lastDot !== -1 && lastComma !== -1) {
+    const decimalSeparator = lastDot > lastComma ? '.' : ',';
+    const decimalPart = s.slice(Math.max(lastDot, lastComma) + 1);
+    if (decimalPart.length === 3) {
+      s = s.replace(/[.,]/g, '');
+    } else if (decimalSeparator === ',') {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    s = normalizeSingleSeparator(s, ',');
+  } else if (lastDot !== -1) {
+    s = normalizeSingleSeparator(s, '.');
   }
+
   const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  if (isNaN(n)) return 0;
+  return isNegative ? -n : n;
 };
 
 export const parseNum = cleanNum; // Alias para compatibilidad
