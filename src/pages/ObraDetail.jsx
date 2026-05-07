@@ -17,23 +17,31 @@ const PRESUPUESTO_COLUMNS = [
   { key: 'total', label: 'Total', width: 130, minWidth: 100, align: 'right' },
 ];
 
-const getNextChildCodigo = (baseCodigo, rows) => {
-  const base = (baseCodigo || '').trim();
-  if (!base) return '1';
+const getCodigoAbove = (rowIndex, rows) => {
+  if (rows.length === 0) return '1';
 
-  const childPrefix = `${base}.`;
-  const maxChild = rows.reduce((max, row) => {
-    const codigo = (row.codigo || '').trim();
-    if (!codigo.startsWith(childPrefix)) return max;
+  let candidate;
+  if (rowIndex <= 0) {
+    const current = (rows[0]?.codigo || '1').trim();
+    const parts = current.split('.');
+    const lastNumber = Number(parts[parts.length - 1]);
+    if (Number.isFinite(lastNumber) && lastNumber > 0) {
+      parts[parts.length - 1] = String(lastNumber - 1);
+      candidate = parts.join('.');
+    } else {
+      candidate = '0';
+    }
+  } else {
+    const prevCodigo = (rows[rowIndex - 1]?.codigo || String(rowIndex)).trim();
+    candidate = `${prevCodigo}.0`;
+  }
 
-    const rest = codigo.slice(childPrefix.length);
-    if (rest.includes('.')) return max;
+  const usedCodes = new Set(rows.map(row => (row.codigo || '').trim()));
+  while (usedCodes.has(candidate)) {
+    candidate = `${candidate}.0`;
+  }
 
-    const childNumber = Number(rest);
-    return Number.isInteger(childNumber) ? Math.max(max, childNumber) : max;
-  }, 0);
-
-  return `${base}.${maxChild + 1}`;
+  return candidate;
 };
 
 const getDefaultPresupuestoColWidths = () =>
@@ -61,6 +69,7 @@ export default function ObraDetail() {
   const [totalEspejo, setTotalEspejo] = useState(0);
   const [presupuestoItems, setPresupuestoItems] = useState([]);
   const [presupuestoColWidths, setPresupuestoColWidths] = useState(getDefaultPresupuestoColWidths);
+  const [budgetContextMenu, setBudgetContextMenu] = useState(null);
 
   const [selectedPartida, setSelectedPartida] = useState(null);
   const [editPartidaForm, setEditPartidaForm] = useState(null);
@@ -197,6 +206,20 @@ export default function ObraDetail() {
   }, [id, presupuestoColWidths]);
 
   useEffect(() => {
+    const closeBudgetContextMenu = () => setBudgetContextMenu(null);
+    const closeOnEscape = (e) => {
+      if (e.key === 'Escape') setBudgetContextMenu(null);
+    };
+
+    document.addEventListener('click', closeBudgetContextMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('click', closeBudgetContextMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
+
+  useEffect(() => {
     if (tab === 1 || tab === 3) {
       const fetchMaterialesGlobales = async () => {
         const { data } = await supabase.from('compras').select('descripcion');
@@ -256,11 +279,20 @@ export default function ObraDetail() {
     fetchTab(1);
   };
 
-  const addItemAtPosition = async (e, rowIndex = -1) => {
+  const openBudgetContextMenu = (e, rowIndex = -1, row = null) => {
     e.preventDefault();
+    setBudgetContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      rowIndex,
+      row
+    });
+  };
 
-    const baseRow = data.presupuesto[rowIndex];
-    const codigo = getNextChildCodigo(baseRow?.codigo, data.presupuesto);
+  const addItemAbove = async (rowIndex = -1) => {
+    setBudgetContextMenu(null);
+
+    const codigo = getCodigoAbove(rowIndex, data.presupuesto);
     const payload = {
       obra_id: id,
       codigo,
@@ -285,6 +317,12 @@ export default function ObraDetail() {
     setTimeout(() => {
       document.querySelector(`[data-id="${inserted.id}"][data-field="descripcion"]`)?.focus();
     }, 80);
+  };
+
+  const deleteBudgetRowFromMenu = async (row) => {
+    setBudgetContextMenu(null);
+    if (!row) return;
+    await deleteRow('presupuesto_items', row.id);
   };
 
   const handleUpdatePartida = async (e) => {
@@ -667,7 +705,7 @@ export default function ObraDetail() {
           )}
 
           <div className="fb" style={{ marginBottom: 14, background:'var(--bg2)', padding:12, borderRadius:'var(--r2)', border:'1px solid var(--border)' }}>
-             <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar, <strong>pegar desde Excel (Ctrl+V)</strong> y agregar una fila con click derecho.</p>
+             <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar, <strong>pegar desde Excel (Ctrl+V)</strong> y abrir opciones con click derecho.</p>
           </div>
 
           <div className="card" style={{ padding:0 }}>
@@ -696,7 +734,7 @@ export default function ObraDetail() {
                 </thead>
                 <tbody>
                   {data.presupuesto.length === 0 ? (
-                    <tr onContextMenu={(e) => addItemAtPosition(e)}><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Click derecho para agregar una fila o importa desde Excel.</td></tr>
+                    <tr onContextMenu={(e) => openBudgetContextMenu(e)}><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Click derecho para agregar una fila o importa desde Excel.</td></tr>
                   ) : data.presupuesto.map((p,i) => {
                     const isTitle = (Number(p.cantidad) === 0 && Number(p.precio_unitario) === 0 && p.codigo && !p.descripcion.toLowerCase().includes('instalación'));
                     
@@ -717,7 +755,7 @@ export default function ObraDetail() {
                       <tr
                         key={p.id}
                         onClick={() => setSelectedPartida(p)}
-                        onContextMenu={(e) => addItemAtPosition(e, i)}
+                        onContextMenu={(e) => openBudgetContextMenu(e, i, p)}
                         style={{ background: isTitle ? 'var(--bg3)' : sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}
                       >
                         <td className="ts tx" style={{ textAlign: 'center' }}>{i+1}</td>
@@ -808,10 +846,30 @@ export default function ObraDetail() {
                   })}
                   </tbody>
                 </table>
-              </div>
             </div>
+          </div>
 
-            {/* Resumen financiero */}
+          {budgetContextMenu && (
+            <div
+              className="budget-context-menu"
+              style={{ left: budgetContextMenu.x, top: budgetContextMenu.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button type="button" onClick={() => addItemAbove(budgetContextMenu.rowIndex)}>
+                Agregar fila sobre
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={!budgetContextMenu.row}
+                onClick={() => deleteBudgetRowFromMenu(budgetContextMenu.row)}
+              >
+                Eliminar fila
+              </button>
+            </div>
+          )}
+
+          {/* Resumen financiero */}
             <div style={{ background:'var(--bg3)',padding:'14px 18px',borderTop:'1px solid var(--border)' }}>
               <div style={{ display:'flex',justifyContent:'flex-end',gap:60 }}>
                 <div style={{ textAlign:'right' }}>

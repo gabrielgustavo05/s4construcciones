@@ -1295,6 +1295,45 @@ select option {
   user-select: none;
 }
 
+.budget-context-menu {
+  position: fixed;
+  z-index: 1500;
+  min-width: 170px;
+  padding: 5px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+}
+
+.budget-context-menu button {
+  width: 100%;
+  min-height: 32px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.budget-context-menu button:hover:not(:disabled) {
+  background: var(--bg3);
+}
+
+.budget-context-menu button.danger {
+  color: #f87171;
+}
+
+.budget-context-menu button:disabled {
+  color: var(--text3);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .excel-input {
   width: 100%;
   height: 36px;
