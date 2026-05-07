@@ -501,8 +501,6 @@ export default function ObraDetail() {
         </div>
       )}
 
-  return (
-    <div className="detail-overlay">
       {/* Header */}
       <div className="detail-header">
         <Link to="/obras" className="btn btn-s btn-sm">← Volver</Link>
@@ -1248,6 +1246,50 @@ export default function ObraDetail() {
 
           <div className="sol-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
             {(!data.solicitudes || data.solicitudes.length === 0) ? (
+              <div style={{ gridColumn:'1/-1', textAlign:'center', padding:24, color:'var(--text3)' }}>No hay solicitudes de material.</div>
+            ) : (
+              data.solicitudes.map(s => (
+                <div key={s.id} className="card" style={{ cursor:'pointer' }}>
+                  <div className="card-title">{s.titulo}</div>
+                  <Badge estado={s.urgencia}/>
+                  {s.foto_pedido_url && <img src={s.foto_pedido_url} alt="Foto" style={{ width:'100%', borderRadius:'var(--r2)', marginTop:12 }} />}
+                  <div className="ts tx" style={{ marginTop:8 }}>Estado: {s.estado}</div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {showSolicitudModal && (
+            <Modal title="📸 Nueva Solicitud de Material" onClose={() => setShowSolicitudModal(false)}>
+              <form onSubmit={handleUploadPedido} className="form-column">
+                <div className="form-group">
+                  <label>Título de solicitud</label>
+                  <input value={newSolicitud.titulo} onChange={e => setNewSolicitud({...newSolicitud, titulo: e.target.value})} placeholder="Ej: Bloques de hormigón" />
+                </div>
+                <div className="form-group">
+                  <label>Urgencia</label>
+                  <select value={newSolicitud.urgencia} onChange={e => setNewSolicitud({...newSolicitud, urgencia: e.target.value})}>
+                    <option>Normal</option>
+                    <option>Urgente</option>
+                    <option>Crítica</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Foto de lista / Pedido</label>
+                  <input type="file" accept="image/*" onChange={handleUploadPedido} required />
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-s" onClick={() => setShowSolicitudModal(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-a" disabled={uploading}>{uploading ? 'Subiendo...' : 'Subir'}</button>
+                </div>
+              </form>
+            </Modal>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
               <div className="card" style={{ gridColumn:'1/-1', textAlign:'center', padding:40, color:'var(--text3)' }}>No hay solicitudes pendientes.</div>
             ) : data.solicitudes.map(s => {
               const hrs = getHorasTranscurridas(s.created_at);
