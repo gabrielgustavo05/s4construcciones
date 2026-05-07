@@ -378,14 +378,257 @@ export default function ObraDetail() {
     let finalVal = value;
     if (field === 'cantidad' || field === 'precio_unitario') {
       finalVal = parseNum(value);
-      // Alerta diagnóstica temporal para ver qué está pasando en vivo
-      console.log(`Enviando: ${field} = ${finalVal}`);
     }
-    const { data: updated, error } = await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId).select();
+    
+    // Update local state first for instant feedback
+    setData(prev => ({
+      ...prev,
+      presupuesto: prev.presupuesto.map(p => p.id === itemId ? { ...p, [field]: finalVal } : p)
+    }));
+
+    const { error } = await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
     if (error) {
       alert('Error al guardar cambio: ' + error.message);
-    } else {
-      fetchTab(1);
+      fetchTab(1); // Rollback on error
+    }
+  };
+
+  const handlePaste = async (e) => {
+    const text = e.clipboardData.getData('text');
+    if (!text.includes('\t') && !text.includes('\n')) return;
+    
+    e.preventDefault();
+    const rows = text.split('\n')
+      .map(row => row.split('\t'))
+      .filter(row => row.length >= 2 && row[1]?.trim());
+
+    const newItems = rows.map(cols => ({
+      obra_id: id,
+      codigo: cols[0] || '',
+      descripcion: cols[1] || '',
+      unidad: cols[2] || 'UN',
+      cantidad: parseNum(cols[3]),
+      precio_unitario: parseNum(cols[4])
+    }));
+
+    if (newItems.length > 0) {
+      const { error } = await supabase.from('presupuesto_items').insert(newItems);
+      if (!error) fetchTab(1);
+      else alert('Error al pegar: ' + error.message);
+    }
+  };
+
+  const handleGridKey = (e, itemId, field, index) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextId = data.presupuesto[index + 1]?.id;
+      if (nextId) document.querySelector(`[data-id="${nextId}"][data-field="${field}"]`)?.focus();
+      else document.querySelector(`.new-row-input[data-field="${field}"]`)?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevId = data.presupuesto[index - 1]?.id;
+      if (prevId) document.querySelector(`[data-id="${prevId}"][data-field="${field}"]`)?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+      const nextId = data.presupuesto[index + 1]?.id;
+      if (nextId) document.querySelector(`[data-id="${nextId}"][data-field="${field}"]`)?.focus();
+      else document.querySelector(`.new-row-input[data-field="${field}"]`)?.focus();
+    }
+  };
+
+  if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
+
+  const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
+  const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia) + (data.gasto_espejo || 0);
+
+  return (
+    <div className="detail-overlay">
+      {/* Header */}
+      <div className="detail-header">
+        <Link to="/obras" className="btn btn-s btn-sm">← Volver</Link>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>{obra.nombre}</div>
+          <div className="ts tx">{obra.tipo} · {obra.n_contrato || 'Sin contrato'} · ITO: {obra.ito || '-'}</div>
+        </div>
+        <Badge estado={obra.estado}/>
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        {TABS.map((t, i) => (
+          <button key={i} className={`tab-btn ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
+        ))}
+        <button className={`tab-btn ${tab === 3 ? 'active' : ''}`} onClick={() => setTab(3)}>🛒 Compras</button>
+        <button className={`tab-btn ${tab === 4 ? 'active' : ''}`} onClick={() => setTab(4)}>📋 Solicitudes</button>
+        <button className={`tab-btn ${tab === 0 ? 'active' : ''}`} onClick={() => setTab(0)}>📊 Resumen</button>
+      </div>
+
+      {/* ── TAB 0: RESUMEN ── */}
+      {tab === 0 && (
+        <div className="tab-panel active">
+          <div className="stats-grid">
+            {[
+              ['amber','Avance', `${obra.avance||0}%`],
+              ['blue','Presupuesto', clp(totalPres)],
+              ['green','Gasto real', clp(totalComp)],
+              [totalPres - totalComp >= 0 ? 'green':'red','Resultado', clp(totalPres - totalComp)],
+              ['teal','Superficie', `${(obra.superficie||0).toLocaleString('es-CL')} m²`],
+            ].map(([c,l,v]) => (
+              <div className={`stat-card ${c}`} key={l}>
+                <span className="stat-label">{l}</span>
+                <span className="stat-value" style={{ fontSize:15 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div className="g2">
+            <div className="card">
+              <div className="fb">
+                <div className="card-title" style={{ margin:0 }}>📋 Datos</div>
+                <button className="btn btn-s btn-sm" onClick={() => { setEditForm(obra); setShowEditObra(true); }}>✏️ Editar</button>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° OC / Contrato',obra.n_contrato]].map(([k,v]) => (
+                  <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v||'-'}</span></div>
+                ))}
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-title">📝 Descripción</div>
+              <div className="nota-box">{obra.descripcion||'Sin descripción.'}</div>
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('logistica')
+        .getPublicUrl(filePath);
+
+      // Crear registro en la tabla
+      const { error: dbError } = await supabase.from('solicitudes_material').insert([{
+        obra_id: id,
+        titulo: newSolicitud.titulo || 'Solicitud de Material',
+        foto_pedido_url: publicUrl,
+        urgencia: newSolicitud.urgencia,
+        estado: 'Pendiente'
+      }]);
+
+      if (dbError) throw dbError;
+
+      setNewSolicitud({ titulo: '', urgencia: 'Normal' });
+      setShowSolicitudModal(false);
+      fetchTab(4);
+    } catch (err) {
+      alert('Error al subir solicitud: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const getHorasTranscurridas = (dateStr) => {
+    const start = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - start;
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    return diffHrs;
+  };
+
+  const addCotizacion = async (e) => {
+    e.preventDefault();
+    await supabase.from('cotizaciones').insert([{ ...newCotizacion, obra_id: id, monto: Number(newCotizacion.monto) }]);
+    setNewCotizacion({ item: '', proveedor: '', monto: '', forma_pago: 'Contado', estado: 'Pendiente', notas: '' });
+    fetchTab(4);
+  };
+
+  const addSubcontrato = async (e) => {
+    e.preventDefault();
+    await supabase.from('subcontratos').insert([{ ...newSubcontrato, obra_id: id, monto_contrato: Number(newSubcontrato.monto_contrato) }]);
+    setNewSubcontrato({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
+    fetchTab(5);
+  };
+
+  const addHito = async (e) => {
+    e.preventDefault();
+    await supabase.from('hitos').insert([{ ...newHito, obra_id: id, avance: Number(newHito.avance) }]);
+    setNewHito({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
+    fetchTab(6);
+  };
+
+  const addEstadoPago = async (e) => {
+    e.preventDefault();
+    await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: Number(newEstadoPago.monto_bruto) }]);
+    setNewEstadoPago({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+    fetchTab(7);
+  };
+
+
+  const updatePct = async (field, value) => {
+    const num = Number(value);
+    if (isNaN(num)) return;
+    await supabase.from('obras').update({ [field]: num }).eq('id', id);
+    fetchObra();
+  };
+
+  const updateItemField = async (itemId, field, value) => {
+    let finalVal = value;
+    if (field === 'cantidad' || field === 'precio_unitario') {
+      finalVal = parseNum(value);
+    }
+    
+    // Update local state first for instant feedback
+    setData(prev => ({
+      ...prev,
+      presupuesto: prev.presupuesto.map(p => p.id === itemId ? { ...p, [field]: finalVal } : p)
+    }));
+
+    const { error } = await supabase.from('presupuesto_items').update({ [field]: finalVal }).eq('id', itemId);
+    if (error) {
+      alert('Error al guardar cambio: ' + error.message);
+      fetchTab(1); // Rollback on error
+    }
+  };
+
+  const handlePaste = async (e) => {
+    const text = e.clipboardData.getData('text');
+    if (!text.includes('\t') && !text.includes('\n')) return;
+    
+    e.preventDefault();
+    const rows = text.split('\n')
+      .map(row => row.split('\t'))
+      .filter(row => row.length >= 2 && row[1]?.trim());
+
+    const newItems = rows.map(cols => ({
+      obra_id: id,
+      codigo: cols[0] || '',
+      descripcion: cols[1] || '',
+      unidad: cols[2] || 'UN',
+      cantidad: parseNum(cols[3]),
+      precio_unitario: parseNum(cols[4])
+    }));
+
+    if (newItems.length > 0) {
+      const { error } = await supabase.from('presupuesto_items').insert(newItems);
+      if (!error) fetchTab(1);
+      else alert('Error al pegar: ' + error.message);
+    }
+  };
+
+  const handleGridKey = (e, itemId, field, index) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextId = data.presupuesto[index + 1]?.id;
+      if (nextId) document.querySelector(`[data-id="${nextId}"][data-field="${field}"]`)?.focus();
+      else document.querySelector(`.new-row-input[data-field="${field}"]`)?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevId = data.presupuesto[index - 1]?.id;
+      if (prevId) document.querySelector(`[data-id="${prevId}"][data-field="${field}"]`)?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+      const nextId = data.presupuesto[index + 1]?.id;
+      if (nextId) document.querySelector(`[data-id="${nextId}"][data-field="${field}"]`)?.focus();
+      else document.querySelector(`.new-row-input[data-field="${field}"]`)?.focus();
     }
   };
 
@@ -507,36 +750,13 @@ export default function ObraDetail() {
             </div>
           )}
 
-          {/* Formulario agregar ítem */}
-          <form onSubmit={addItem} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
-            <div style={{ display:'grid',gridTemplateColumns:'80px 1fr 70px 100px 130px 44px',gap:8,alignItems:'end' }}>
-              <div className="form-group" style={{ margin:0 }}>
-                <label>Código</label>
-                <input value={newItem.codigo} onChange={e=>setNewItem({...newItem,codigo:e.target.value})} placeholder="1.1"/>
-              </div>
-              <div className="form-group" style={{ margin:0 }}>
-                <label>Descripción *</label>
-                <input required value={newItem.descripcion} onChange={e=>setNewItem({...newItem,descripcion:e.target.value})} placeholder="Ej: Hormigón H-30"/>
-              </div>
-              <div className="form-group" style={{ margin:0 }}>
-                <label>Unidad</label>
-                <input value={newItem.unidad} onChange={e=>setNewItem({...newItem,unidad:e.target.value})}/>
-              </div>
-              <div className="form-group" style={{ margin:0 }}>
-                <label>Cantidad</label>
-                <input type="number" step="0.01" required value={newItem.cantidad} onChange={e=>setNewItem({...newItem,cantidad:e.target.value})}/>
-              </div>
-              <div className="form-group" style={{ margin:0 }}>
-                <label>P. Unitario</label>
-                <input type="number" step="0.01" required value={newItem.precio_unitario} onChange={e=>setNewItem({...newItem,precio_unitario:e.target.value})}/>
-              </div>
-              <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
-            </div>
-          </form>
+          <div className="fb" style={{ marginBottom: 14, background:'var(--bg2)', padding:12, borderRadius:'var(--r2)', border:'1px solid var(--border)' }}>
+             <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar y <strong>pegar directamente desde Excel (Ctrl+V)</strong>.</p>
+          </div>
 
           <div className="card" style={{ padding:0 }}>
-            <div className="tw">
-              <table>
+            <div className="tw" onPaste={handlePaste}>
+              <table className="excel-table">
                 <thead><tr><th>N°</th><th>Código</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cant. Pres.</th><th style={{ textAlign:'right' }}>Comprado</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th></th></tr></thead>
                 <tbody>
                   {data.presupuesto.length === 0 ? (
@@ -557,56 +777,62 @@ export default function ObraDetail() {
                       sobrecompra = !isTitle && p.cantidad > 0 && cantComprada > p.cantidad;
                     }
 
-                    if (isTitle) {
-                      return (
-                        <tr key={p.id} style={{ background: 'var(--bg3)' }}>
-                          <td className="ts tx">{i+1}</td>
-                          <td className="ts">
-                            <input 
-                              defaultValue={p.codigo} 
-                              onBlur={(e) => updateItemField(p.id, 'codigo', e.target.value)}
-                              onFocus={(e) => e.target.select()}
-                              onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-                              onClick={(e) => e.stopPropagation()}
-                              placeholder="0.0"
-                              style={{ width:80, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--accent)', fontWeight:800, fontSize:12, padding:'2px 6px', borderRadius:'var(--r2)' }}
-                            />
-                          </td>
-                          <td colSpan="6"><strong>{p.descripcion}</strong></td>
-                          <td>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
-                              <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id, true); }}>✕</button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }
                     return (
-                      <tr key={`${p.id}-${p.cantidad}-${p.precio_unitario}`} onClick={() => setSelectedPartida(p)} style={{ background: sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
+                      <tr key={p.id} onClick={() => setSelectedPartida(p)} style={{ background: isTitle ? 'var(--bg3)' : sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
                         <td className="ts tx">{i+1}</td>
-                        <td className="ts tx">
-                           <input 
-                             defaultValue={p.codigo} 
-                             onBlur={(e) => updateItemField(p.id, 'codigo', e.target.value)}
-                             onFocus={(e) => e.target.select()}
-                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-                             onClick={(e) => e.stopPropagation()}
-                             placeholder="0.0"
-                             style={{ width:80, background:'var(--bg3)', border:'1px solid var(--border)', color:'inherit', fontSize:12, padding:'2px 6px', borderRadius:'var(--r2)' }}
-                           />
+                        <td className="ts">
+                          <input 
+                            data-id={p.id}
+                            data-field="codigo"
+                            defaultValue={p.codigo} 
+                            onBlur={(e) => updateItemField(p.id, 'codigo', e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            onKeyDown={(e) => handleGridKey(e, p.id, 'codigo', i)}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="0.0"
+                            className="excel-input"
+                            style={{ fontWeight: isTitle ? 800 : 400, color: isTitle ? 'var(--accent)' : 'inherit' }}
+                          />
                         </td>
-                        <td><strong>{p.descripcion}</strong></td>
-                        <td><span style={{ background:'var(--bg4)',padding:'2px 6px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{p.unidad}</span></td>
+                        <td>
+                          <input 
+                            data-id={p.id}
+                            data-field="descripcion"
+                            defaultValue={p.descripcion} 
+                            onBlur={(e) => updateItemField(p.id, 'descripcion', e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            onKeyDown={(e) => handleGridKey(e, p.id, 'descripcion', i)}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="Descripción de la partida"
+                            className="excel-input"
+                            style={{ fontWeight: isTitle ? 800 : 500, width: '100%' }}
+                          />
+                        </td>
+                        <td>
+                          <input 
+                            data-id={p.id}
+                            data-field="unidad"
+                            defaultValue={p.unidad} 
+                            onBlur={(e) => updateItemField(p.id, 'unidad', e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            onKeyDown={(e) => handleGridKey(e, p.id, 'unidad', i)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="excel-input center"
+                            style={{ width: 45, fontSize: 10 }}
+                          />
+                        </td>
                         <td className="mono" style={{ textAlign:'right' }}>
                           <input 
+                            data-id={p.id}
+                            data-field="cantidad"
                             type="text" 
                             defaultValue={p.cantidad === 0 ? '' : p.cantidad} 
                             onBlur={(e) => updateItemField(p.id, 'cantidad', e.target.value)}
                             onFocus={(e) => e.target.select()}
-                            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                            onKeyDown={(e) => handleGridKey(e, p.id, 'cantidad', i)}
                             onClick={(e) => e.stopPropagation()}
-                            style={{ width:70, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
+                            className="excel-input right"
+                            style={{ width: 70 }}
                           />
                         </td>
                         <td className="mono" style={{ textAlign:'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
@@ -614,13 +840,16 @@ export default function ObraDetail() {
                         </td>
                         <td className="mono" style={{ textAlign:'right' }}>
                           <input 
+                            data-id={p.id}
+                            data-field="precio_unitario"
                             type="text" 
                             defaultValue={p.precio_unitario === 0 ? '' : p.precio_unitario} 
                             onBlur={(e) => updateItemField(p.id, 'precio_unitario', e.target.value)}
                             onFocus={(e) => e.target.select()}
-                            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                            onKeyDown={(e) => handleGridKey(e, p.id, 'precio_unitario', i)}
                             onClick={(e) => e.stopPropagation()}
-                            style={{ width:90, background:'var(--bg3)', border:'1px solid var(--border)', color:'var(--text)', textAlign:'right', padding:'2px 6px', borderRadius:'var(--r2)', fontSize:12 }}
+                            className="excel-input right"
+                            style={{ width: 90 }}
                           />
                         </td>
                         <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
@@ -632,34 +861,6 @@ export default function ObraDetail() {
                               return <span style={{color:'var(--orange)', fontSize: 10}}>Falta: C:{c} P:{u}</span>;
                             }
                             if (res === 0 && !isTitle) return clp(0);
-                            return clp(res);
-                          })()}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button className="btn btn-s btn-sm" title="Materiales requeridos" onClick={(e) => { e.stopPropagation(); setSelectedPartida(p); }}>📦</button>
-                            <button className="btn btn-s btn-sm" onClick={(e) => { e.stopPropagation(); setEditPartidaForm(p); }}>✏️</button>
-                            <button className="btn btn-d btn-sm" onClick={(e) => { e.stopPropagation(); deleteRow('presupuesto_items', p.id, true); }}>✕</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {totalEspejo > 0 && (
-                    <tr style={{ background:'rgba(59, 130, 246, 0.05)' }}>
-                      <td className="ts tx">-</td>
-                      <td className="ts tx" style={{ color:'var(--blue)', fontWeight:800 }}>M-01</td>
-                      <td colSpan="2"><strong>PRESUPUESTO DEPTO. ELÉCTRICO (ESPEJO)</strong></td>
-                      <td className="mono" style={{ textAlign:'right' }}>1</td>
-                      <td className="mono" style={{ textAlign:'right' }}>-</td>
-                      <td className="mono" style={{ textAlign:'right' }}>{clp(totalEspejo)}</td>
-                      <td className="mono" style={{ textAlign:'right', fontWeight:700, color:'var(--blue)' }}>{clp(totalEspejo)}</td>
-                      <td></td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
             {/* Resumen financiero */}
             <div style={{ background:'var(--bg3)',padding:'14px 18px',borderTop:'1px solid var(--border)' }}>
               <div style={{ display:'flex',justifyContent:'flex-end',gap:60 }}>

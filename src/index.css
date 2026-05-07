@@ -1229,4 +1229,64 @@ select option {
 }
 
 .critical-delay { animation: blink-red 2s infinite; border: 2px solid var(--red) !important; }
+
+/* ── EXCEL GRID STYLES ──────────────── */
+.excel-table {
+  border-spacing: 0;
+  border-collapse: separate;
+}
+
+.excel-table td {
+  padding: 0 !important;
+  border-right: 1px solid var(--border);
+}
+
+.excel-table th {
+  border-right: 1px solid var(--border);
+}
+
+.excel-input {
+  width: 100%;
+  height: 36px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.1s;
+  display: block;
+}
+
+.excel-input:focus {
+  background: rgba(217, 119, 6, 0.05);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  z-index: 10;
+  position: relative;
+}
+
+.excel-input.right {
+  text-align: right;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.excel-input.center {
+  text-align: center;
+}
+
+.new-row {
+  background: rgba(16, 185, 129, 0.03);
+}
+
+.new-row-input:focus {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+
+.excel-table tr:hover .excel-input:not(:focus) {
+  background: rgba(255, 255, 255, 0.02);
+}
 
