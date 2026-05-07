@@ -17,6 +17,25 @@ const PRESUPUESTO_COLUMNS = [
   { key: 'total', label: 'Total', width: 130, minWidth: 100, align: 'right' },
 ];
 
+const getNextChildCodigo = (baseCodigo, rows) => {
+  const base = (baseCodigo || '').trim();
+  if (!base) return '1';
+
+  const childPrefix = `${base}.`;
+  const maxChild = rows.reduce((max, row) => {
+    const codigo = (row.codigo || '').trim();
+    if (!codigo.startsWith(childPrefix)) return max;
+
+    const rest = codigo.slice(childPrefix.length);
+    if (rest.includes('.')) return max;
+
+    const childNumber = Number(rest);
+    return Number.isInteger(childNumber) ? Math.max(max, childNumber) : max;
+  }, 0);
+
+  return `${base}.${maxChild + 1}`;
+};
+
 export default function ObraDetail() {
   const { id } = useParams(); const navigate = useNavigate();
   const [obra, setObra] = useState(null);
@@ -212,6 +231,37 @@ export default function ObraDetail() {
     await supabase.from('presupuesto_items').insert([{ ...newItem, obra_id: id, cantidad: Number(newItem.cantidad), precio_unitario: Number(newItem.precio_unitario) }]);
     setNewItem({ codigo:'', descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'' });
     fetchTab(1);
+  };
+
+  const addItemAtPosition = async (e, rowIndex = -1) => {
+    e.preventDefault();
+
+    const baseRow = data.presupuesto[rowIndex];
+    const codigo = getNextChildCodigo(baseRow?.codigo, data.presupuesto);
+    const payload = {
+      obra_id: id,
+      codigo,
+      descripcion: 'Nueva partida',
+      unidad: 'UN',
+      cantidad: 1,
+      precio_unitario: 0
+    };
+
+    const { data: inserted, error } = await supabase
+      .from('presupuesto_items')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      alert('Error al crear fila: ' + error.message);
+      return;
+    }
+
+    await fetchTab(1);
+    setTimeout(() => {
+      document.querySelector(`[data-id="${inserted.id}"][data-field="descripcion"]`)?.focus();
+    }, 80);
   };
 
   const handleUpdatePartida = async (e) => {
@@ -594,7 +644,7 @@ export default function ObraDetail() {
           )}
 
           <div className="fb" style={{ marginBottom: 14, background:'var(--bg2)', padding:12, borderRadius:'var(--r2)', border:'1px solid var(--border)' }}>
-             <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar y <strong>pegar directamente desde Excel (Ctrl+V)</strong>.</p>
+             <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar, <strong>pegar desde Excel (Ctrl+V)</strong> y agregar una fila con click derecho.</p>
           </div>
 
           <div className="card" style={{ padding:0 }}>
@@ -623,7 +673,7 @@ export default function ObraDetail() {
                 </thead>
                 <tbody>
                   {data.presupuesto.length === 0 ? (
-                    <tr><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Agrega manualmente o importa desde Excel.</td></tr>
+                    <tr onContextMenu={(e) => addItemAtPosition(e)}><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Click derecho para agregar una fila o importa desde Excel.</td></tr>
                   ) : data.presupuesto.map((p,i) => {
                     const isTitle = (Number(p.cantidad) === 0 && Number(p.precio_unitario) === 0 && p.codigo && !p.descripcion.toLowerCase().includes('instalación'));
                     
@@ -641,7 +691,12 @@ export default function ObraDetail() {
                     }
 
                     return (
-                      <tr key={p.id} onClick={() => setSelectedPartida(p)} style={{ background: isTitle ? 'var(--bg3)' : sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}>
+                      <tr
+                        key={p.id}
+                        onClick={() => setSelectedPartida(p)}
+                        onContextMenu={(e) => addItemAtPosition(e, i)}
+                        style={{ background: isTitle ? 'var(--bg3)' : sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}
+                      >
                         <td className="ts tx">{i+1}</td>
                         <td className="ts">
                           <input 
