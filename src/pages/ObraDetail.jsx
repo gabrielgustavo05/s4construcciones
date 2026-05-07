@@ -88,10 +88,8 @@ export default function ObraDetail() {
       setEditForm(o);
       
       // Obtener total del espejo para sumarlo al presupuesto total
-      const { data: espejos } = await supabase.from('obras').select('id').eq('obra_parent_id', id); // Usar obra_parent_id o obra_padre_id según corresponda
-      const actualPadreId = o.obra_padre_id; 
+      const { data: mirrors } = await supabase.from('obras').select('id').eq('obra_padre_id', id).eq('departamento', 'Eléctrico');
       
-      const { data: mirrors } = await supabase.from('obras').select('id').eq('obra_padre_id', id);
       if (mirrors && mirrors.length > 0) {
         const mirrorId = mirrors[0].id;
         const { data: mItems } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', mirrorId);
@@ -138,18 +136,12 @@ export default function ObraDetail() {
     let sortedRows = rows || [];
     
     // Si estamos cargando presupuesto de obra de construcción, sincronizar con detalle eléctrico
-    if (table === 'presupuesto_items' && obra?.departamento === 'Construcción') {
-      const { data: espejo } = await supabase.from('obras').select('id').eq('obra_padre_id', id).eq('departamento', 'Eléctrico').single();
-      if (espejo) {
-        const { data: itemsEsp } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', espejo.id);
-        const totalEsp = itemsEsp?.reduce((s, i) => s + (i.cantidad * i.precio_unitario || 0), 0) || 0;
-        
-        // Buscar partida eléctrica (ej: 4.1 o descripción)
-        const idxElec = sortedRows.findIndex(p => p.codigo === '4.1' || p.descripcion.toLowerCase().includes('eléctric'));
-        if (idxElec !== -1 && sortedRows[idxElec].precio_unitario !== totalEsp) {
-          await supabase.from('presupuesto_items').update({ precio_unitario: totalEsp }).eq('id', sortedRows[idxElec].id);
-          sortedRows[idxElec].precio_unitario = totalEsp;
-        }
+    if (table === 'presupuesto_items' && obra?.departamento === 'Construcción' && totalEspejo > 0) {
+      // Buscar partida eléctrica específica (Código 4.1)
+      const idxElec = sortedRows.findIndex(p => p.codigo === '4.1');
+      if (idxElec !== -1 && sortedRows[idxElec].precio_unitario !== totalEspejo) {
+        await supabase.from('presupuesto_items').update({ precio_unitario: totalEspejo }).eq('id', sortedRows[idxElec].id);
+        sortedRows[idxElec].precio_unitario = totalEspejo;
       }
     }
 
