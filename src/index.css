@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Backgrounds */
   --bg: #09090b;
@@ -1289,4 +1293,4 @@ select option {
 .excel-table tr:hover .excel-input:not(:focus) {
   background: rgba(255, 255, 255, 0.02);
 }
-
+
