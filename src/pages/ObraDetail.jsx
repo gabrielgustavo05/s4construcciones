@@ -6,7 +6,7 @@ import { validateCompraForm } from '../lib/validators';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
-const TABS = ['Resumen', 'Presupuesto', 'RRHH', 'Compras', 'Cotizaciones', 'Subcontratos', 'Hitos', 'Estados de Pago'];
+const TABS = ['Resumen', 'Presupuesto', 'RRHH', 'Compras', 'Solicitudes', 'Cotizaciones', 'Subcontratos', 'Hitos', 'Estados de Pago'];
 const PRESUPUESTO_COLUMNS = [
   { key: 'n', label: 'N°', width: 52, minWidth: 42, align: 'center' },
   { key: 'codigo', label: 'Código', width: 90, minWidth: 70 },
@@ -104,7 +104,7 @@ export default function ObraDetail() {
 
   const fetchTab = useCallback(async (tabIndex) => {
     setLoading(true);
-    const tables = ['presupuesto_items', 'asistencia', 'compras', 'cotizaciones', 'subcontratos', 'hitos', 'estados_pago'];
+    const tables = ['presupuesto_items', 'asistencia', 'compras', null, 'cotizaciones', 'subcontratos', 'hitos', 'estados_pago'];
 
     // Si es Resumen (Tab 0), traer gasto real del espejo eléctrico si existe
     if (tabIndex === 0) {
@@ -135,6 +135,13 @@ export default function ObraDetail() {
           setData(d => ({ ...d, gasto_espejo: gastoEsp }));
         }
       }
+      setLoading(false);
+      return;
+    }
+
+    if (tabIndex === 4) {
+      const { data: sol } = await supabase.from('solicitudes_material').select('*').eq('obra_id', id).order('created_at', { ascending: false });
+      setData(d => ({ ...d, solicitudes: sol || [] }));
       setLoading(false);
       return;
     }
@@ -182,10 +189,6 @@ export default function ObraDetail() {
       setPresupuestoItems(items || []);
     }
 
-    if (tabIndex === 4) {
-      const { data: sol } = await supabase.from('solicitudes_material').select('*').eq('obra_id', id).order('created_at', { ascending: false });
-      setData(d => ({ ...d, solicitudes: sol || [] }));
-    }
     setLoading(false);
   }, [id, obra]);
 
@@ -244,7 +247,11 @@ export default function ObraDetail() {
   // ── Acciones genéricas ──
   const deleteRow = async (table, rowId, noConfirm = false) => {
     if (!noConfirm && !confirm('¿Eliminar?')) return;
-    await supabase.from(table).delete().eq('id', rowId);
+    const { error } = await supabase.from(table).delete().eq('id', rowId);
+    if (error) {
+      alert('No se pudo eliminar: ' + error.message);
+      return;
+    }
     fetchTab(tab);
   };
 
@@ -518,28 +525,28 @@ export default function ObraDetail() {
     e.preventDefault();
     await supabase.from('cotizaciones').insert([{ ...newCotizacion, obra_id: id, monto: Number(newCotizacion.monto) }]);
     setNewCotizacion({ item: '', proveedor: '', monto: '', forma_pago: 'Contado', estado: 'Pendiente', notas: '' });
-    fetchTab(4);
+    fetchTab(5);
   };
 
   const addSubcontrato = async (e) => {
     e.preventDefault();
     await supabase.from('subcontratos').insert([{ ...newSubcontrato, obra_id: id, monto_contrato: Number(newSubcontrato.monto_contrato) }]);
     setNewSubcontrato({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
-    fetchTab(5);
+    fetchTab(6);
   };
 
   const addHito = async (e) => {
     e.preventDefault();
     await supabase.from('hitos').insert([{ ...newHito, obra_id: id, avance: Number(newHito.avance) }]);
     setNewHito({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
-    fetchTab(6);
+    fetchTab(7);
   };
 
   const addEstadoPago = async (e) => {
     e.preventDefault();
     await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: Number(newEstadoPago.monto_bruto) }]);
     setNewEstadoPago({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
-    fetchTab(7);
+    fetchTab(8);
   };
 
 
@@ -645,6 +652,7 @@ export default function ObraDetail() {
     subcontratos: data.subcontratos,
     gastoEspejo: data.gasto_espejo || 0
   }).total;
+  const totalSoloCompras = calcCompras(data.compras);
   const presupuestoTableWidth = PRESUPUESTO_COLUMNS.reduce((sum, col) => sum + (presupuestoColWidths[col.key] || col.width), 0);
 
   return (
@@ -665,9 +673,6 @@ export default function ObraDetail() {
         {TABS.map((t, i) => (
           <button key={i} className={`tab-btn ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
         ))}
-        <button className={`tab-btn ${tab === 3 ? 'active' : ''}`} onClick={() => setTab(3)}>🛒 Compras</button>
-        <button className={`tab-btn ${tab === 4 ? 'active' : ''}`} onClick={() => setTab(4)}>📋 Solicitudes</button>
-        <button className={`tab-btn ${tab === 0 ? 'active' : ''}`} onClick={() => setTab(0)}>📊 Resumen</button>
       </div>
 
       {/* ── TAB 0: RESUMEN ── */}
@@ -1080,7 +1085,7 @@ export default function ObraDetail() {
             </div>
             <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
               <span className="ts tx">Total compras: </span>
-              <span style={{ fontFamily: 'Courier New', fontWeight: 800, fontSize: 16, color: 'var(--accent)', marginLeft: 8 }}>{clp(totalComp)}</span>
+              <span style={{ fontFamily: 'Courier New', fontWeight: 800, fontSize: 16, color: 'var(--accent)', marginLeft: 8 }}>{clp(totalSoloCompras)}</span>
             </div>
           </div>
           {totalPres > 0 && (
@@ -1097,7 +1102,7 @@ export default function ObraDetail() {
       )}
 
       {/* ── TAB 4: COTIZACIONES ── */}
-      {tab === 4 && (
+      {tab === 5 && (
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">📝 Agregar Cotización</div>
@@ -1142,7 +1147,7 @@ export default function ObraDetail() {
       )}
 
       {/* ── TAB 5: SUBCONTRATOS ── */}
-      {tab === 5 && (
+      {tab === 6 && (
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">🤝 Registrar Subcontrato</div>
@@ -1185,7 +1190,7 @@ export default function ObraDetail() {
       )}
 
       {/* ── TAB 6: HITOS ── */}
-      {tab === 6 && (
+      {tab === 7 && (
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">📅 Agregar Hito - Tarea</div>
@@ -1224,7 +1229,7 @@ export default function ObraDetail() {
       )}
 
       {/* ── TAB 7: ESTADOS DE PAGO ── */}
-      {tab === 7 && (
+      {tab === 8 && (
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">💰 Emitir Estado de Pago</div>
