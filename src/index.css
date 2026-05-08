@@ -1992,3 +1992,177 @@ textarea:disabled {
   }
 }
 
+/* ============================================================
+   REUSABLE PRODUCT DESIGN COMPONENTS
+   ============================================================ */
+.page-header-shell {
+  min-height: 74px;
+}
+
+.page-eyebrow {
+  margin-bottom: 3px;
+  color: var(--accent2);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(40, 168, 117, 0.25);
+  border-radius: 999px;
+  background: rgba(40, 168, 117, 0.08);
+  color: #75d9aa;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.live-pill span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #75d9aa;
+  box-shadow: 0 0 0 4px rgba(40, 168, 117, 0.12);
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.kpi-card {
+  position: relative;
+  min-height: 128px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--text3);
+  opacity: 0.95;
+}
+
+.kpi-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kpi-label {
+  color: var(--text3);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text2);
+}
+
+.kpi-value {
+  margin-top: 16px;
+  color: var(--text);
+  font-size: clamp(19px, 2vw, 25px);
+  font-weight: 850;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.kpi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  color: var(--text3);
+  font-size: 10px;
+}
+
+.kpi-footer strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.kpi-card.success::before { background: var(--green); }
+.kpi-card.warning::before { background: var(--orange); }
+.kpi-card.danger::before { background: var(--red); }
+.kpi-card.info::before { background: var(--blue); }
+.kpi-card.accent::before { background: var(--accent); }
+.kpi-card.neutral::before { background: var(--text3); }
+
+.kpi-card.success .kpi-icon { color: #75d9aa; background: rgba(40, 168, 117, 0.1); border-color: rgba(40, 168, 117, 0.22); }
+.kpi-card.warning .kpi-icon { color: #e8b15a; background: rgba(217, 145, 47, 0.11); border-color: rgba(217, 145, 47, 0.24); }
+.kpi-card.danger .kpi-icon { color: #f08b86; background: rgba(223, 90, 85, 0.12); border-color: rgba(223, 90, 85, 0.26); }
+.kpi-card.info .kpi-icon { color: #8abbea; background: rgba(79, 140, 201, 0.12); border-color: rgba(79, 140, 201, 0.25); }
+.kpi-card.accent .kpi-icon { color: #f2c56d; background: rgba(201, 138, 44, 0.12); border-color: rgba(201, 138, 44, 0.26); }
+
+.dashboard-panels {
+  align-items: stretch;
+}
+
+.chart-card,
+.data-card {
+  box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 1180px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header-shell {
+    align-items: flex-start;
+  }
+
+  .page-header-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-card {
+    min-height: 112px;
+  }
+}
+

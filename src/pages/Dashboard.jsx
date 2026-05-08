@@ -1,9 +1,21 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  BarChart3,
+  BriefcaseBusiness,
+  ClipboardCheck,
+  FileClock,
+  Gauge,
+  Handshake,
+  WalletCards,
+} from 'lucide-react';
+import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabase';
 import { clp, calcPresupuesto, calcCostoReal, semaforoColor, pct } from '../lib/helpers';
-import { Chart, registerables } from 'chart.js';
 import Badge from '../components/Badge';
+import KpiCard from '../components/KpiCard';
+import PageHeader from '../components/PageHeader';
 
 Chart.register(...registerables);
 
@@ -13,9 +25,9 @@ export default function Dashboard() {
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
   const chartPresRef = useRef(null);
-  const chartAvRef  = useRef(null);
+  const chartAvRef = useRef(null);
   const chartPresInst = useRef(null);
-  const chartAvInst   = useRef(null);
+  const chartAvInst = useRef(null);
 
   const fetchObras = useCallback(async () => {
     try {
@@ -37,21 +49,17 @@ export default function Dashboard() {
       if (error) throw error;
       setErrorMsg('');
 
-      // 1. Separar obras principales de espejos
-      const principales = data.filter(o => o.departamento === 'Construcción' || !o.obra_padre_id);
-      const espejos      = data.filter(o => o.departamento === 'Eléctrico' && o.obra_padre_id);
+      const principales = data.filter((o) => o.departamento === 'Construccion' || o.departamento === 'Construcción' || !o.obra_padre_id);
+      const espejos = data.filter((o) => (o.departamento === 'Electrico' || o.departamento === 'Eléctrico') && o.obra_padre_id);
 
-      // 2. Consolidar datos
       const obrasData = principales.map((main) => {
-        const espejo = espejos.find(e => e.obra_padre_id === main.id);
-        
+        const espejo = espejos.find((e) => e.obra_padre_id === main.id);
         const { total: totalPres } = calcPresupuesto(
           main.presupuesto_items || [],
           main.gastos_generales_pct,
           main.utilidad_pct
         );
 
-        // Sumar gastos de la obra principal + gastos del espejo eléctrico
         const gastoPrincipal = calcCostoReal({
           compras: main.compras || [],
           asistencia: main.asistencia || [],
@@ -62,9 +70,9 @@ export default function Dashboard() {
           asistencia: espejo.asistencia || [],
           subcontratos: espejo.subcontratos || [],
         }).total : 0;
-        
+
         const totalCompras = gastoPrincipal + gastoEspejo;
-        const diferencia   = totalPres - totalCompras;
+        const diferencia = totalPres - totalCompras;
 
         return { ...main, totalPres, totalCompras, diferencia };
       });
@@ -78,42 +86,37 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Carga inicial
   useEffect(() => { fetchObras(); }, [fetchObras]);
 
-  // Supabase Realtime — escucha cambios en todas las tablas relevantes
   useEffect(() => {
     const channel = supabase
       .channel('dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'obras' },           fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'obras' }, fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'presupuesto_items' }, fetchObras)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' },         fetchObras)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'asistencia' },      fetchObras)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cotizaciones' },    fetchObras)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subcontratos' },    fetchObras)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_pago' },    fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' }, fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'asistencia' }, fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cotizaciones' }, fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subcontratos' }, fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_pago' }, fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes_material' }, fetchObras)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [fetchObras]);
 
-  // Renderizar gráficos
   useEffect(() => {
     if (!obras.length || loading) return;
 
-    const labels = obras.map((o) =>
-      o.nombre.length > 16 ? o.nombre.slice(0, 16) + '…' : o.nombre
-    );
+    const labels = obras.map((o) => (o.nombre.length > 16 ? `${o.nombre.slice(0, 16)}...` : o.nombre));
     const chartOpts = {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#71717a', font: { size: 10 }, boxWidth: 10 } },
+        legend: { labels: { color: '#a8b1bd', font: { size: 10 }, boxWidth: 10 } },
       },
       scales: {
-        x: { ticks: { color: '#52525b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
-        y: { ticks: { color: '#52525b', font: { size: 9 }, callback: (v) => clp(v) }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        x: { ticks: { color: '#737f8c', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.035)' } },
+        y: { ticks: { color: '#737f8c', font: { size: 9 }, callback: (v) => clp(v) }, grid: { color: 'rgba(255,255,255,0.035)' } },
       },
     };
 
@@ -124,8 +127,8 @@ export default function Dashboard() {
         data: {
           labels,
           datasets: [
-            { label: 'Presupuesto', data: obras.map((o) => o.totalPres), backgroundColor: 'rgba(59,130,246,0.6)', borderColor: '#3b82f6', borderWidth: 1 },
-            { label: 'Gasto real',  data: obras.map((o) => o.totalCompras), backgroundColor: 'rgba(217,119,6,0.6)', borderColor: '#d97706', borderWidth: 1 },
+            { label: 'Presupuesto', data: obras.map((o) => o.totalPres), backgroundColor: 'rgba(79,140,201,0.64)', borderColor: '#4f8cc9', borderWidth: 1 },
+            { label: 'Gasto real', data: obras.map((o) => o.totalCompras), backgroundColor: 'rgba(201,138,44,0.68)', borderColor: '#c98a2c', borderWidth: 1 },
           ],
         },
         options: chartOpts,
@@ -134,8 +137,8 @@ export default function Dashboard() {
 
     const avOpts = { ...chartOpts, indexAxis: 'y' };
     avOpts.scales = {
-      x: { ticks: { color: '#52525b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.03)' }, max: 100 },
-      y: { ticks: { color: '#52525b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+      x: { ticks: { color: '#737f8c', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.035)' }, max: 100 },
+      y: { ticks: { color: '#737f8c', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.035)' } },
     };
     avOpts.plugins = { legend: { display: false } };
 
@@ -149,9 +152,9 @@ export default function Dashboard() {
             label: 'Avance %',
             data: obras.map((o) => o.avance || 0),
             backgroundColor: obras.map((o) =>
-              (o.avance || 0) >= 80 ? 'rgba(16,185,129,0.7)' :
-              (o.avance || 0) >= 40 ? 'rgba(217,119,6,0.7)' :
-              'rgba(59,130,246,0.7)'
+              (o.avance || 0) >= 80 ? 'rgba(40,168,117,0.72)' :
+              (o.avance || 0) >= 40 ? 'rgba(201,138,44,0.72)' :
+              'rgba(79,140,201,0.72)'
             ),
             borderWidth: 0,
           }],
@@ -162,7 +165,7 @@ export default function Dashboard() {
 
     return () => {
       if (chartPresInst.current) chartPresInst.current.destroy();
-      if (chartAvInst.current)   chartAvInst.current.destroy();
+      if (chartAvInst.current) chartAvInst.current.destroy();
     };
   }, [obras, loading]);
 
@@ -173,24 +176,25 @@ export default function Dashboard() {
     </div>
   );
 
-  const activas     = obras.filter((o) => o.estado === 'Activa' || o.estado === 'En Progreso');
-  const totalPres   = obras.reduce((s, o) => s + o.totalPres, 0);
-  const totalGasto  = obras.reduce((s, o) => s + o.totalCompras, 0);
-  const avPromedio  = activas.length ? Math.round(activas.reduce((s, o) => s + (o.avance || 0), 0) / activas.length) : 0;
-  const totalSubs   = obras.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
-  const cotPend     = obras.reduce((s, o) => s + (o.cotizaciones || []).filter((c) => c.estado === 'Pendiente').length, 0);
+  const activas = obras.filter((o) => o.estado === 'Activa' || o.estado === 'En Progreso');
+  const totalPres = obras.reduce((s, o) => s + o.totalPres, 0);
+  const totalGasto = obras.reduce((s, o) => s + o.totalCompras, 0);
+  const resultado = totalPres - totalGasto;
+  const avPromedio = activas.length ? Math.round(activas.reduce((s, o) => s + (o.avance || 0), 0) / activas.length) : 0;
+  const totalSubs = obras.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
+  const cotPend = obras.reduce((s, o) => s + (o.cotizaciones || []).filter((c) => c.estado === 'Pendiente').length, 0);
+  const obrasRiesgo = obras.filter((o) => o.totalPres > 0 && o.totalCompras / o.totalPres >= 0.85).length;
+  const fechaDashboard = new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
     <div>
-      <div className="ph">
-        <div>
-          <h2>Dashboard ejecutivo</h2>
-          <p>{new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 700 }}>● EN VIVO</span>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Control financiero y operativo"
+        title="Dashboard ejecutivo"
+        subtitle={fechaDashboard}
+        live
+      />
+
       {errorMsg && (
         <div className="pb" style={{ paddingBottom: 0 }}>
           <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{errorMsg}</div>
@@ -198,67 +202,30 @@ export default function Dashboard() {
       )}
 
       <div className="pb">
-        {/* Stats */}
-        <div className="stats-grid">
-          <div className="stat-card amber">
-            <span className="stat-label">Obras activas</span>
-            <span className="stat-value">{activas.length}<span style={{ fontSize: 13, color: 'var(--text2)' }}> / {obras.length}</span></span>
-            <div className="stat-sub">Total portafolio</div>
-          </div>
-          <div className="stat-card blue">
-            <span className="stat-label">Presupuesto total</span>
-            <span className="stat-value" style={{ fontSize: 15 }}>{clp(totalPres)}</span>
-            <div className="stat-sub">Suma de obras</div>
-          </div>
-          <div className="stat-card green">
-            <span className="stat-label">Gasto comprometido</span>
-            <span className="stat-value" style={{ fontSize: 15 }}>{clp(totalGasto)}</span>
-            <div className="stat-sub">{pct(totalGasto, totalPres)}% ejecutado</div>
-          </div>
-          <div className={`stat-card ${totalPres - totalGasto < 0 ? 'red' : 'green'}`}>
-            <span className="stat-label">Resultado</span>
-            <span className="stat-value" style={{ fontSize: 15, color: totalPres - totalGasto >= 0 ? 'var(--green)' : 'var(--red)' }}>
-              {clp(totalPres - totalGasto)}
-            </span>
-            <div className="stat-sub">Presupuesto restante</div>
-          </div>
-          <div className={`stat-card ${cotPend > 0 ? 'red' : 'green'}`}>
-            <span className="stat-label">Cots. pendientes</span>
-            <span className="stat-value">{cotPend}</span>
-            <div className="stat-sub">Por aprobar</div>
-          </div>
-          <div className="stat-card purple">
-            <span className="stat-label">Avance promedio</span>
-            <span className="stat-value">{avPromedio}%</span>
-            <div className="stat-sub">Obras activas</div>
-          </div>
-          <div className="stat-card teal">
-            <span className="stat-label">Total subcontratos</span>
-            <span className="stat-value" style={{ fontSize: 15 }}>{clp(totalSubs)}</span>
-            <div className="stat-sub">{obras.reduce((s, o) => s + (o.subcontratos || []).length, 0)} contratos</div>
-          </div>
-          <div className="stat-card amber">
-            <span className="stat-label">Total obras</span>
-            <span className="stat-value">{obras.length}</span>
-            <div className="stat-sub">En el sistema</div>
-          </div>
+        <div className="kpi-grid">
+          <KpiCard label="Obras activas" value={`${activas.length} / ${obras.length}`} sub="Portafolio en control" icon={BriefcaseBusiness} tone="warning" />
+          <KpiCard label="Presupuesto total" value={clp(totalPres)} sub="Suma de obras" icon={WalletCards} tone="info" />
+          <KpiCard label="Gasto comprometido" value={clp(totalGasto)} sub="Ejecutado sobre presupuesto" meta={`${pct(totalGasto, totalPres)}%`} icon={BarChart3} tone="success" />
+          <KpiCard label="Resultado" value={clp(resultado)} sub={resultado >= 0 ? 'Presupuesto disponible' : 'Sobrecosto acumulado'} icon={Gauge} tone={resultado >= 0 ? 'success' : 'danger'} />
+          <KpiCard label="Cotizaciones pendientes" value={cotPend} sub="Por aprobar" icon={FileClock} tone={cotPend > 0 ? 'danger' : 'success'} />
+          <KpiCard label="Avance promedio" value={`${avPromedio}%`} sub="Obras activas" icon={ClipboardCheck} tone="neutral" />
+          <KpiCard label="Subcontratos" value={clp(totalSubs)} sub={`${obras.reduce((s, o) => s + (o.subcontratos || []).length, 0)} contratos`} icon={Handshake} tone="accent" />
+          <KpiCard label="Obras en riesgo" value={obrasRiesgo} sub="Sobre 85% de consumo" icon={AlertTriangle} tone={obrasRiesgo > 0 ? 'danger' : 'success'} />
         </div>
 
-        {/* Gráficos */}
-        <div className="g2">
-          <div className="card">
-            <div className="card-title">📊 Presupuesto vs Gasto real</div>
+        <div className="g2 dashboard-panels">
+          <div className="card chart-card">
+            <div className="card-title">Presupuesto vs gasto real</div>
             <div className="chart-wrap"><canvas ref={chartPresRef} /></div>
           </div>
-          <div className="card">
-            <div className="card-title">📈 Avance por obra (%)</div>
+          <div className="card chart-card">
+            <div className="card-title">Avance por obra (%)</div>
             <div className="chart-wrap"><canvas ref={chartAvRef} /></div>
           </div>
         </div>
 
-        {/* Tabla de obras */}
-        <div className="card" style={{ padding: 0 }}>
-          <div className="card-title" style={{ padding: '14px 16px 0' }}>🏢 Estado de obras</div>
+        <div className="card data-card" style={{ padding: 0 }}>
+          <div className="card-title" style={{ padding: '14px 16px 0' }}>Estado de obras</div>
           <div className="tw">
             <table>
               <thead>
@@ -308,7 +275,7 @@ export default function Dashboard() {
                       <td className={`mono ${dif >= 0 ? 'tg' : 'tr2'}`}>{clp(dif)}</td>
                       <td>
                         <button className="btn btn-s btn-sm" onClick={() => navigate(`/obra/${o.id}`)}>
-                          Ver →
+                          Ver
                         </button>
                       </td>
                     </tr>
