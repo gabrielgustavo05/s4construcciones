@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { clp, calcPresupuesto, calcCompras, semaforoColor, pct } from '../lib/helpers';
+import { clp, calcPresupuesto, calcCostoReal, semaforoColor, pct } from '../lib/helpers';
 import { Chart, registerables } from 'chart.js';
 import Badge from '../components/Badge';
 
@@ -50,8 +50,16 @@ export default function Dashboard() {
         );
 
         // Sumar gastos de la obra principal + gastos del espejo eléctrico
-        const gastoPrincipal = calcCompras(main.compras || []) + (main.asistencia || []).reduce((acc, a) => acc + Number(a.total_pago || 0), 0);
-        const gastoEspejo    = espejo ? (calcCompras(espejo.compras || []) + (espejo.asistencia || []).reduce((acc, a) => acc + Number(a.total_pago || 0), 0)) : 0;
+        const gastoPrincipal = calcCostoReal({
+          compras: main.compras || [],
+          asistencia: main.asistencia || [],
+          subcontratos: main.subcontratos || [],
+        }).total;
+        const gastoEspejo = espejo ? calcCostoReal({
+          compras: espejo.compras || [],
+          asistencia: espejo.asistencia || [],
+          subcontratos: espejo.subcontratos || [],
+        }).total : 0;
         
         const totalCompras = gastoPrincipal + gastoEspejo;
         const diferencia   = totalPres - totalCompras;

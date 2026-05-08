@@ -40,7 +40,26 @@ export const calcCompras = (compras) =>
 
 // Calcular total de asistencia (Sueldos)
 export const calcAsistencia = (asistencias) =>
-  asistencias.reduce((acc, a) => acc + Number(a.total_pago), 0);
+  asistencias.reduce((acc, a) => acc + parseNum(a.total_pago), 0);
+
+export const calcCostoReal = ({ compras = [], asistencia = [], subcontratos = [], gastoEspejo = 0 } = {}) => {
+  const totalCompras = calcCompras(compras);
+  const totalManoObra = calcAsistencia(asistencia);
+  const totalSubcontratos = subcontratos.reduce((acc, s) => acc + parseNum(s.monto_contrato), 0);
+  const total = totalCompras + totalManoObra + totalSubcontratos + parseNum(gastoEspejo);
+
+  return { totalCompras, totalManoObra, totalSubcontratos, gastoEspejo: parseNum(gastoEspejo), total };
+};
+
+export const calcDesviacion = (presupuesto, costoReal) => {
+  const pres = parseNum(presupuesto);
+  const costo = parseNum(costoReal);
+  const diferencia = pres - costo;
+  const porcentaje = pres ? Math.round((costo / pres) * 100) : 0;
+  const sobrecostoPct = pres && costo > pres ? Math.round(((costo - pres) / pres) * 100) : 0;
+
+  return { diferencia, porcentaje, sobrecostoPct, enRiesgo: porcentaje >= 85, sobreCosto: costo > pres };
+};
 
 // Color semáforo según variación financiera
 export const semaforoColor = (presupuesto, gasto) => {

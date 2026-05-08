@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { clp, calcPresupuesto, calcCompras, calcAsistencia, semaforoColor } from '../lib/helpers';
+import { clp, calcPresupuesto, calcCostoReal, semaforoColor, parseNum } from '../lib/helpers';
+import { validateObraForm } from '../lib/validators';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
@@ -32,7 +33,6 @@ export default function DptoElectrico() {
 
   const [deletingId, setDeletingId] = useState(null);
   const [deletePass, setDeletePass] = useState('');
-  const ADMIN_DELETE_KEY = 'S4Admin2024'; // Clave maestra para eliminación
 
   const fetchObras = useCallback(async () => {
     const [{ data }, { data: obrasConstruccion }] = await Promise.all([
@@ -43,7 +43,8 @@ export default function DptoElectrico() {
           gastos_generales_pct, utilidad_pct, fecha_fin,
           presupuesto_items ( cantidad, precio_unitario ),
           compras ( cantidad, precio_unitario ),
-          asistencia ( total_pago )
+          asistencia ( total_pago ),
+          subcontratos ( monto_contrato )
         `)
         .eq('departamento', 'Eléctrico')
         .order('created_at', { ascending: false }),
@@ -54,7 +55,7 @@ export default function DptoElectrico() {
       setObras(data.map((o) => ({
         ...o,
         totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).total,
-        totalCompras: calcCompras(o.compras || []) + calcAsistencia(o.asistencia || []),
+        totalCompras: calcCostoReal({ compras: o.compras || [], asistencia: o.asistencia || [], subcontratos: o.subcontratos || [] }).total,
       })));
     }
     if (obrasConstruccion) setObrasMadre(obrasConstruccion);
@@ -63,10 +64,16 @@ export default function DptoElectrico() {
 
   useEffect(() => { fetchObras(); }, [fetchObras]);
 
-  const toNum = (v, def = null) => v === '' || v === undefined ? def : Number(v);
+  const toNum = (v, def = null) => v === '' || v === undefined ? def : parseNum(v);
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const errors = validateObraForm(form);
+    if (errors.length) {
+      alert(errors.join('\n'));
+      return;
+    }
+
     const payload = {
       ...form,
       user_id: user.id,
@@ -91,11 +98,15 @@ export default function DptoElectrico() {
   };
 
   const confirmDelete = async () => {
-    if (deletePass !== ADMIN_DELETE_KEY) {
-      alert('Clave de gerencia incorrecta');
+    if (deletePass !== 'ELIMINAR') {
+      alert('Escribe ELIMINAR para confirmar');
       return;
     }
-    await supabase.from('obras').delete().eq('id', deletingId);
+    const { error } = await supabase.from('obras').delete().eq('id', deletingId);
+    if (error) {
+      alert('No se pudo eliminar el proyecto: ' + error.message);
+      return;
+    }
     setDeletingId(null);
     fetchObras();
   };
@@ -289,12 +300,12 @@ export default function DptoElectrico() {
             <p style={{ color: 'var(--red)', fontWeight: 700, marginBottom: 20 }}>Esta acción es irreversible.</p>
             
             <div className="form-group">
-              <label>CLAVE DE GERENCIA</label>
+              <label>CONFIRMACIÓN</label>
               <input 
                 type="password" 
                 value={deletePass} 
                 onChange={(e) => setDeletePass(e.target.value)} 
-                placeholder="Ingrese clave para autorizar"
+                placeholder="Escribe ELIMINAR"
                 style={{ textAlign: 'center', fontSize: 18, letterSpacing: 4 }}
                 autoFocus
               />

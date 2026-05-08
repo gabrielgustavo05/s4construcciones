@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, parseExcel, parseNum, cleanNum } from '../lib/helpers';
+import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, calcCostoReal, parseExcel, parseNum, cleanNum } from '../lib/helpers';
+import { validateCompraForm } from '../lib/validators';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
@@ -107,14 +108,30 @@ export default function ObraDetail() {
 
     // Si es Resumen (Tab 0), traer gasto real del espejo eléctrico si existe
     if (tabIndex === 0) {
+      const [{ data: presupuesto }, { data: asistencia }, { data: compras }, { data: subcontratos }] = await Promise.all([
+        supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        supabase.from('asistencia').select('*, trabajador:trabajador_id(*)').eq('obra_id', id).order('fecha', { ascending: false }),
+        supabase.from('compras').select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        supabase.from('subcontratos').select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true }),
+      ]);
+
+      setData(d => ({
+        ...d,
+        presupuesto: presupuesto || [],
+        asistencia: asistencia || [],
+        compras: compras || [],
+        subcontratos: subcontratos || [],
+        gasto_espejo: 0,
+      }));
       if (obra?.departamento === 'Construcción') {
         const { data: espejo } = await supabase.from('obras').select('id').eq('obra_padre_id', id).eq('departamento', 'Eléctrico').single();
         if (espejo) {
-          const [{ data: asisEsp }, { data: compEsp }] = await Promise.all([
+          const [{ data: asisEsp }, { data: compEsp }, { data: subsEsp }] = await Promise.all([
             supabase.from('asistencia').select('total_pago').eq('obra_id', espejo.id),
-            supabase.from('compras').select('cantidad, precio_unitario').eq('obra_id', espejo.id)
+            supabase.from('compras').select('cantidad, precio_unitario').eq('obra_id', espejo.id),
+            supabase.from('subcontratos').select('monto_contrato').eq('obra_id', espejo.id)
           ]);
-          const gastoEsp = (asisEsp?.reduce((s, a) => s + (a.total_pago || 0), 0) || 0) + (compEsp?.reduce((s, c) => s + (c.cantidad * c.precio_unitario || 0), 0) || 0);
+          const gastoEsp = calcCostoReal({ compras: compEsp || [], asistencia: asisEsp || [], subcontratos: subsEsp || [] }).total;
           setData(d => ({ ...d, gasto_espejo: gastoEsp }));
         }
       }
@@ -370,7 +387,13 @@ export default function ObraDetail() {
   const [newCompra, setNewCompra] = useState({ descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '', proveedor: '', n_documento: '', fecha: today(), presupuesto_item_id: '' });
   const addCompra = async (e) => {
     e.preventDefault();
-    const payload = { ...newCompra, obra_id: id, cantidad: Number(newCompra.cantidad), precio_unitario: Number(newCompra.precio_unitario) };
+    const errors = validateCompraForm(newCompra);
+    if (errors.length) {
+      alert(errors.join('\n'));
+      return;
+    }
+
+    const payload = { ...newCompra, obra_id: id, cantidad: parseNum(newCompra.cantidad), precio_unitario: parseNum(newCompra.precio_unitario) };
     if (!payload.presupuesto_item_id) delete payload.presupuesto_item_id;
     const { error } = await supabase.from('compras').insert([payload]);
     if (error) {
@@ -616,7 +639,12 @@ export default function ObraDetail() {
   if (!obra) return <div className="loading-center"><div className="spinner" />Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
-  const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia) + (data.gasto_espejo || 0);
+  const totalComp = calcCostoReal({
+    compras: data.compras,
+    asistencia: data.asistencia,
+    subcontratos: data.subcontratos,
+    gastoEspejo: data.gasto_espejo || 0
+  }).total;
   const presupuestoTableWidth = PRESUPUESTO_COLUMNS.reduce((sum, col) => sum + (presupuestoColWidths[col.key] || col.width), 0);
 
   return (
