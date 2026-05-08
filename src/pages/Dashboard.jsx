@@ -10,6 +10,7 @@ Chart.register(...registerables);
 export default function Dashboard() {
   const [obras, setObras] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
   const chartPresRef = useRef(null);
   const chartAvRef  = useRef(null);
@@ -34,6 +35,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      setErrorMsg('');
 
       // 1. Separar obras principales de espejos
       const principales = data.filter(o => o.departamento === 'Construcción' || !o.obra_padre_id);
@@ -70,6 +72,7 @@ export default function Dashboard() {
       setObras(obrasData);
     } catch (err) {
       console.error(err);
+      setErrorMsg('No se pudo actualizar el dashboard: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -85,9 +88,11 @@ export default function Dashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'obras' },           fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'presupuesto_items' }, fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' },         fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'asistencia' },      fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cotizaciones' },    fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subcontratos' },    fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_pago' },    fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes_material' }, fetchObras)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -186,6 +191,11 @@ export default function Dashboard() {
           <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 700 }}>● EN VIVO</span>
         </div>
       </div>
+      {errorMsg && (
+        <div className="pb" style={{ paddingBottom: 0 }}>
+          <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{errorMsg}</div>
+        </div>
+      )}
 
       <div className="pb">
         {/* Stats */}

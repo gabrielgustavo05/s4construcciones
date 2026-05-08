@@ -34,8 +34,12 @@ export default function EstadosPago() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar estado de pago?')) return;
-    await supabase.from('estados_pago').delete().eq('id', id);
+    if (!confirm('Eliminar estado de pago?')) return;
+    const { error } = await supabase.from('estados_pago').delete().eq('id', id);
+    if (error) {
+      alert('No se pudo eliminar el estado de pago: ' + error.message);
+      return;
+    }
     fetchData();
   };
 

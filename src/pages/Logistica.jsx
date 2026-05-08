@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { parseNum, today } from '../lib/helpers';
 import Modal from '../components/Modal';
 import Badge from '../components/Badge';
 
@@ -8,6 +9,7 @@ export default function Logistica() {
   const [loading, setLoading] = useState(true);
   const [selectedSol, setSelectedSol] = useState(null);
   const [uploadingFactura, setUploadingFactura] = useState(false);
+  const [savingGestion, setSavingGestion] = useState(false);
   
   // Estado para gestión de compra
   const [gestionForm, setGestionForm] = useState({
@@ -27,7 +29,11 @@ export default function Logistica() {
       `)
       .order('created_at', { ascending: false });
 
-    if (!error) setSolicitudes(data || []);
+    if (error) {
+      alert('No se pudieron cargar las solicitudes: ' + error.message);
+    } else {
+      setSolicitudes(data || []);
+    }
     setLoading(false);
   }, []);
 
@@ -37,26 +43,69 @@ export default function Logistica() {
 
   const handleGestionarCompra = async (e) => {
     e.preventDefault();
-    if (!selectedSol) return;
+    if (!selectedSol || savingGestion) return;
 
-    // Si se sube una factura, se maneja en otro paso o aquí mismo
+    const montoTotal = parseNum(gestionForm.monto_total);
+    const proveedor = (gestionForm.lugar_retiro || '').trim();
+    const detalleCompra = (gestionForm.detalles_compra || '').trim();
+
+    if (montoTotal <= 0) {
+      alert('El monto total debe ser mayor a cero.');
+      return;
+    }
+    if (!proveedor) {
+      alert('Indica el proveedor o lugar de retiro.');
+      return;
+    }
+    if (!detalleCompra) {
+      alert('Resume que se compro para que quede registrado en compras y en obra.');
+      return;
+    }
+
     const payload = {
       ...gestionForm,
-      monto_total: Number(gestionForm.monto_total),
-      estado: 'Comprado', // Pasa a estado comprado para que el camionero lo vea
+      monto_total: montoTotal,
+      estado: 'Comprado',
       updated_at: new Date()
     };
 
-    const { error } = await supabase
-      .from('solicitudes_material')
-      .update(payload)
-      .eq('id', selectedSol.id);
+    setSavingGestion(true);
+    let compraId = null;
 
-    if (!error) {
+    try {
+      const { data: compra, error: compraError } = await supabase
+        .from('compras')
+        .insert([{
+          obra_id: selectedSol.obra_id,
+          descripcion: detalleCompra,
+          unidad: 'GL',
+          cantidad: 1,
+          precio_unitario: montoTotal,
+          proveedor,
+          n_documento: `SOL-${String(selectedSol.id).slice(0, 8)}`,
+          fecha: today(),
+        }])
+        .select('id')
+        .single();
+
+      if (compraError) throw compraError;
+      compraId = compra?.id || null;
+
+      const { error } = await supabase
+        .from('solicitudes_material')
+        .update(payload)
+        .eq('id', selectedSol.id);
+
+      if (error) throw error;
+
       setSelectedSol(null);
+      setGestionForm({ monto_total: '', lugar_retiro: '', detalles_compra: '', urgencia: 'Normal' });
       fetchSolicitudes();
-    } else {
-      alert('Error al gestionar: ' + error.message);
+    } catch (error) {
+      if (compraId) await supabase.from('compras').delete().eq('id', compraId);
+      alert('Error al gestionar compra: ' + error.message);
+    } finally {
+      setSavingGestion(false);
     }
   };
 
@@ -80,10 +129,11 @@ export default function Logistica() {
         .from('logistica')
         .getPublicUrl(filePath);
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('solicitudes_material')
         .update({ foto_factura_url: publicUrl })
         .eq('id', selectedSol.id);
+      if (updateError) throw updateError;
       
       alert('Factura/Boleta subida con éxito');
       fetchSolicitudes();
@@ -99,7 +149,11 @@ export default function Logistica() {
       .from('solicitudes_material')
       .update({ estado: nuevoEstado, updated_at: new Date() })
       .eq('id', id);
-    if (!error) fetchSolicitudes();
+    if (error) {
+      alert('No se pudo actualizar el estado: ' + error.message);
+      return;
+    }
+    fetchSolicitudes();
   };
 
   const moverFecha = async (id, dias) => {
@@ -107,10 +161,14 @@ export default function Logistica() {
     let baseDate = sol.fecha_prometida ? new Date(sol.fecha_prometida) : new Date();
     baseDate.setDate(baseDate.getDate() + dias);
     
-    await supabase
+    const { error } = await supabase
       .from('solicitudes_material')
       .update({ fecha_prometida: baseDate.toISOString() })
       .eq('id', id);
+    if (error) {
+      alert('No se pudo mover la fecha: ' + error.message);
+      return;
+    }
     fetchSolicitudes();
   };
 
@@ -256,7 +314,9 @@ export default function Logistica() {
 
               <div className="modal-actions" style={{ marginTop:20 }}>
                 <button type="button" className="btn btn-s" onClick={() => setSelectedSol(null)}>Cancelar</button>
-                <button type="submit" className="btn btn-a">Confirmar Compra y Enviar a Camión</button>
+                <button type="submit" className="btn btn-a" disabled={savingGestion}>
+                  {savingGestion ? 'Guardando...' : 'Confirmar Compra y Enviar a Camión'}
+                </button>
               </div>
             </form>
           </div>

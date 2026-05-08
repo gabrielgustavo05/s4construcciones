@@ -275,7 +275,11 @@ export default function ObraDetail() {
 
   const confirmExcelImport = async () => {
     const rows = excelPreview.map(i => ({ ...i, obra_id: id }));
-    await supabase.from('presupuesto_items').insert(rows);
+    const { error } = await supabase.from('presupuesto_items').insert(rows);
+    if (error) {
+      alert('Error al importar presupuesto: ' + error.message);
+      return;
+    }
     setExcelPreview(null);
     fetchTab(1);
   };
@@ -316,7 +320,14 @@ export default function ObraDetail() {
   const [newItem, setNewItem] = useState({ codigo: '', descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '' });
   const addItem = async (e) => {
     e.preventDefault();
-    await supabase.from('presupuesto_items').insert([{ ...newItem, obra_id: id, cantidad: Number(newItem.cantidad), precio_unitario: Number(newItem.precio_unitario) }]);
+    if (!(newItem.descripcion || '').trim()) return alert('La descripcion de la partida es obligatoria.');
+    if (parseNum(newItem.cantidad) <= 0) return alert('La cantidad debe ser mayor a cero.');
+    if (parseNum(newItem.precio_unitario) < 0) return alert('El precio unitario no puede ser negativo.');
+    const { error } = await supabase.from('presupuesto_items').insert([{ ...newItem, obra_id: id, cantidad: parseNum(newItem.cantidad), precio_unitario: parseNum(newItem.precio_unitario) }]);
+    if (error) {
+      alert('Error al crear partida: ' + error.message);
+      return;
+    }
     setNewItem({ codigo: '', descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '' });
     fetchTab(1);
   };
@@ -467,7 +478,8 @@ export default function ObraDetail() {
       total_pago: Math.round(total_pago)
     };
 
-    await supabase.from('asistencia').insert([payload]);
+    const { error } = await supabase.from('asistencia').insert([payload]);
+    if (error) return alert('Error al registrar asistencia: ' + error.message);
     setNewAsistencia({ ...newAsistencia, trabajador_id: '', dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
     fetchTab(2); // tab 2 es Asistencia
   };
@@ -523,28 +535,41 @@ export default function ObraDetail() {
 
   const addCotizacion = async (e) => {
     e.preventDefault();
-    await supabase.from('cotizaciones').insert([{ ...newCotizacion, obra_id: id, monto: Number(newCotizacion.monto) }]);
+    if (!(newCotizacion.item || '').trim()) return alert('El item cotizado es obligatorio.');
+    if (!(newCotizacion.proveedor || '').trim()) return alert('El proveedor es obligatorio.');
+    if (parseNum(newCotizacion.monto) <= 0) return alert('El monto debe ser mayor a cero.');
+    const { error } = await supabase.from('cotizaciones').insert([{ ...newCotizacion, obra_id: id, monto: parseNum(newCotizacion.monto) }]);
+    if (error) return alert('Error al crear cotizacion: ' + error.message);
     setNewCotizacion({ item: '', proveedor: '', monto: '', forma_pago: 'Contado', estado: 'Pendiente', notas: '' });
     fetchTab(5);
   };
 
   const addSubcontrato = async (e) => {
     e.preventDefault();
-    await supabase.from('subcontratos').insert([{ ...newSubcontrato, obra_id: id, monto_contrato: Number(newSubcontrato.monto_contrato) }]);
+    if (!(newSubcontrato.empresa || '').trim()) return alert('La empresa subcontratista es obligatoria.');
+    if (parseNum(newSubcontrato.monto_contrato) <= 0) return alert('El monto del contrato debe ser mayor a cero.');
+    const { error } = await supabase.from('subcontratos').insert([{ ...newSubcontrato, obra_id: id, monto_contrato: parseNum(newSubcontrato.monto_contrato), retencion_pct: parseNum(newSubcontrato.retencion_pct), avance: parseNum(newSubcontrato.avance) }]);
+    if (error) return alert('Error al crear subcontrato: ' + error.message);
     setNewSubcontrato({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
     fetchTab(6);
   };
 
   const addHito = async (e) => {
     e.preventDefault();
-    await supabase.from('hitos').insert([{ ...newHito, obra_id: id, avance: Number(newHito.avance) }]);
+    if (!(newHito.nombre || '').trim()) return alert('El nombre del hito es obligatorio.');
+    if (newHito.fecha_inicio_plan && newHito.fecha_fin_plan && newHito.fecha_fin_plan < newHito.fecha_inicio_plan) return alert('La fecha fin no puede ser anterior a la fecha inicio.');
+    const { error } = await supabase.from('hitos').insert([{ ...newHito, obra_id: id, avance: parseNum(newHito.avance) }]);
+    if (error) return alert('Error al crear hito: ' + error.message);
     setNewHito({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
     fetchTab(7);
   };
 
   const addEstadoPago = async (e) => {
     e.preventDefault();
-    await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: Number(newEstadoPago.monto_bruto) }]);
+    if (!(newEstadoPago.descripcion || '').trim()) return alert('La descripcion del estado de pago es obligatoria.');
+    if (parseNum(newEstadoPago.monto_bruto) <= 0) return alert('El monto bruto debe ser mayor a cero.');
+    const { error } = await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: parseNum(newEstadoPago.monto_bruto), retencion_pct: parseNum(newEstadoPago.retencion_pct) }]);
+    if (error) return alert('Error al crear estado de pago: ' + error.message);
     setNewEstadoPago({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
     fetchTab(8);
   };

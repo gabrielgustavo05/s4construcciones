@@ -33,15 +33,22 @@ export default function Cotizaciones() {
     if (!error) { setShowModal(false); setForm(EMPTY); fetchData(); }
     else alert(error.message);
   };
-
   const handleAprobar = async (id, ok) => {
-    await supabase.from('cotizaciones').update({ estado: ok ? 'Aprobada' : 'Rechazada' }).eq('id', id);
+    const { error } = await supabase.from('cotizaciones').update({ estado: ok ? 'Aprobada' : 'Rechazada' }).eq('id', id);
+    if (error) {
+      alert('No se pudo actualizar la cotizacion: ' + error.message);
+      return;
+    }
     fetchData();
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar cotización?')) return;
-    await supabase.from('cotizaciones').delete().eq('id', id);
+    if (!confirm('Eliminar cotizacion?')) return;
+    const { error } = await supabase.from('cotizaciones').delete().eq('id', id);
+    if (error) {
+      alert('No se pudo eliminar la cotizacion: ' + error.message);
+      return;
+    }
     fetchData();
   };
 

@@ -33,10 +33,13 @@ export default function Subcontratos() {
     if (!error) { setShowModal(false); setForm(EMPTY); fetchData(); }
     else alert(error.message);
   };
-
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar subcontrato?')) return;
-    await supabase.from('subcontratos').delete().eq('id', id);
+    if (!confirm('Eliminar subcontrato?')) return;
+    const { error } = await supabase.from('subcontratos').delete().eq('id', id);
+    if (error) {
+      alert('No se pudo eliminar el subcontrato: ' + error.message);
+      return;
+    }
     fetchData();
   };
 
