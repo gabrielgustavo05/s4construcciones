@@ -704,6 +704,34 @@ tr:hover td {
   min-height: 65px;
 }
 
+.compra-form-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) 70px 90px 110px minmax(140px, 1.2fr) 110px;
+  gap: 8px;
+  align-items: end;
+}
+
+.compra-field-descripcion,
+.compra-field-partida {
+  grid-column: span 3;
+}
+
+.compra-field-fecha {
+  grid-column: span 2;
+}
+
+.compra-submit {
+  align-self: end;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
 select option {
   background: var(--bg2);
 }
@@ -1151,6 +1179,22 @@ select option {
 
   .form-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .compra-form-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .compra-field-descripcion,
+  .compra-field-partida,
+  .compra-field-fecha {
+    grid-column: span 2;
+  }
+
+  .compra-submit {
+    width: 100%;
+    min-width: 0;
+    grid-column: span 2;
   }
 
   .stats-grid {

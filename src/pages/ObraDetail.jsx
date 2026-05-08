@@ -5,7 +5,7 @@ import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, pars
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
-const TABS = ['Resumen','Presupuesto','RRHH','Compras','Cotizaciones','Subcontratos','Hitos','Estados de Pago'];
+const TABS = ['Resumen', 'Presupuesto', 'RRHH', 'Compras', 'Cotizaciones', 'Subcontratos', 'Hitos', 'Estados de Pago'];
 const PRESUPUESTO_COLUMNS = [
   { key: 'n', label: 'N°', width: 52, minWidth: 42, align: 'center' },
   { key: 'codigo', label: 'Código', width: 90, minWidth: 70 },
@@ -73,8 +73,8 @@ export default function ObraDetail() {
 
   const [selectedPartida, setSelectedPartida] = useState(null);
   const [editPartidaForm, setEditPartidaForm] = useState(null);
-  const [newMaterial, setNewMaterial] = useState({ descripcion:'', unidad:'UN', cantidad:'' });
-  
+  const [newMaterial, setNewMaterial] = useState({ descripcion: '', unidad: 'UN', cantidad: '' });
+
   const [newCotizacion, setNewCotizacion] = useState({ item: '', proveedor: '', monto: '', forma_pago: 'Contado', estado: 'Pendiente', notas: '' });
   const [newSubcontrato, setNewSubcontrato] = useState({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
   const [newHito, setNewHito] = useState({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
@@ -86,10 +86,10 @@ export default function ObraDetail() {
     if (o) {
       setObra(o);
       setEditForm(o);
-      
+
       // Obtener total del espejo para sumarlo al presupuesto total
       const { data: mirrors } = await supabase.from('obras').select('id').eq('obra_padre_id', id).eq('departamento', 'Eléctrico');
-      
+
       if (mirrors && mirrors.length > 0) {
         const mirrorId = mirrors[0].id;
         const { data: mItems } = await supabase.from('presupuesto_items').select('cantidad, precio_unitario').eq('obra_id', mirrorId);
@@ -103,8 +103,8 @@ export default function ObraDetail() {
 
   const fetchTab = useCallback(async (tabIndex) => {
     setLoading(true);
-    const tables = ['presupuesto_items','asistencia','compras','cotizaciones','subcontratos','hitos','estados_pago'];
-    
+    const tables = ['presupuesto_items', 'asistencia', 'compras', 'cotizaciones', 'subcontratos', 'hitos', 'estados_pago'];
+
     // Si es Resumen (Tab 0), traer gasto real del espejo eléctrico si existe
     if (tabIndex === 0) {
       if (obra?.departamento === 'Construcción') {
@@ -114,16 +114,16 @@ export default function ObraDetail() {
             supabase.from('asistencia').select('total_pago').eq('obra_id', espejo.id),
             supabase.from('compras').select('cantidad, precio_unitario').eq('obra_id', espejo.id)
           ]);
-          const gastoEsp = (asisEsp?.reduce((s,a)=>s+(a.total_pago||0),0)||0) + (compEsp?.reduce((s,c)=>s+(c.cantidad*c.precio_unitario||0),0)||0);
+          const gastoEsp = (asisEsp?.reduce((s, a) => s + (a.total_pago || 0), 0) || 0) + (compEsp?.reduce((s, c) => s + (c.cantidad * c.precio_unitario || 0), 0) || 0);
           setData(d => ({ ...d, gasto_espejo: gastoEsp }));
         }
       }
-      setLoading(false); 
-      return; 
+      setLoading(false);
+      return;
     }
 
     const table = tables[tabIndex - 1];
-    
+
     let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
     if (table === 'presupuesto_items') {
       query = supabase.from('presupuesto_items').select('*, presupuesto_materiales(*)').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
@@ -134,7 +134,7 @@ export default function ObraDetail() {
 
     const { data: rows } = await query;
     let sortedRows = rows || [];
-    
+
     // Si estamos cargando presupuesto de obra de construcción, sincronizar con detalle eléctrico
     if (table === 'presupuesto_items' && obra?.departamento === 'Construcción' && totalEspejo > 0) {
       // Buscar partida eléctrica específica (Código 4.1)
@@ -166,8 +166,8 @@ export default function ObraDetail() {
     }
 
     if (tabIndex === 4) {
-       const { data: sol } = await supabase.from('solicitudes_material').select('*').eq('obra_id', id).order('created_at', { ascending: false });
-       setData(d => ({ ...d, solicitudes: sol || [] }));
+      const { data: sol } = await supabase.from('solicitudes_material').select('*').eq('obra_id', id).order('created_at', { ascending: false });
+      setData(d => ({ ...d, solicitudes: sol || [] }));
     }
     setLoading(false);
   }, [id, obra]);
@@ -289,11 +289,11 @@ export default function ObraDetail() {
   };
 
   // ── Agregar ítem presupuesto ──
-  const [newItem, setNewItem] = useState({ codigo:'', descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'' });
+  const [newItem, setNewItem] = useState({ codigo: '', descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '' });
   const addItem = async (e) => {
     e.preventDefault();
     await supabase.from('presupuesto_items').insert([{ ...newItem, obra_id: id, cantidad: Number(newItem.cantidad), precio_unitario: Number(newItem.precio_unitario) }]);
-    setNewItem({ codigo:'', descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'' });
+    setNewItem({ codigo: '', descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '' });
     fetchTab(1);
   };
 
@@ -367,19 +367,23 @@ export default function ObraDetail() {
   };
 
   // ── Agregar compra ──
-  const [newCompra, setNewCompra] = useState({ descripcion:'', unidad:'UN', cantidad:'', precio_unitario:'', proveedor:'', n_documento:'', fecha: today(), presupuesto_item_id: '' });
+  const [newCompra, setNewCompra] = useState({ descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '', proveedor: '', n_documento: '', fecha: today(), presupuesto_item_id: '' });
   const addCompra = async (e) => {
     e.preventDefault();
     const payload = { ...newCompra, obra_id: id, cantidad: Number(newCompra.cantidad), precio_unitario: Number(newCompra.precio_unitario) };
     if (!payload.presupuesto_item_id) delete payload.presupuesto_item_id;
-    await supabase.from('compras').insert([payload]);
+    const { error } = await supabase.from('compras').insert([payload]);
+    if (error) {
+      alert('No se pudo agregar la compra: ' + error.message);
+      return;
+    }
     // Mantener Proveedor, N° Documento y Fecha para facilitar ingresos múltiples de una misma factura
-    setNewCompra({ 
-      ...newCompra, 
-      descripcion: '', 
-      cantidad: '', 
-      precio_unitario: '', 
-      presupuesto_item_id: '' 
+    setNewCompra({
+      ...newCompra,
+      descripcion: '',
+      cantidad: '',
+      precio_unitario: '',
+      presupuesto_item_id: ''
     });
     fetchTab(3);
   };
@@ -389,8 +393,8 @@ export default function ObraDetail() {
     const payload = { ...newMaterial, presupuesto_item_id: selectedPartida.id, cantidad: Number(newMaterial.cantidad) };
     const { data: inserted, error } = await supabase.from('presupuesto_materiales').insert([payload]).select().single();
     if (!error) {
-       setSelectedPartida(prev => ({ ...prev, presupuesto_materiales: [...(prev.presupuesto_materiales || []), inserted] }));
-       setNewMaterial({ descripcion:'', unidad:'UN', cantidad:'' });
+      setSelectedPartida(prev => ({ ...prev, presupuesto_materiales: [...(prev.presupuesto_materiales || []), inserted] }));
+      setNewMaterial({ descripcion: '', unidad: 'UN', cantidad: '' });
     } else alert(error.message);
   };
 
@@ -406,23 +410,23 @@ export default function ObraDetail() {
     e.preventDefault();
     const tr = trabajadores.find(t => t.id === newAsistencia.trabajador_id);
     if (!tr) return alert('Seleccione un trabajador');
-    
+
     const dias = Number(newAsistencia.dias_trabajados);
     const bono = Number(newAsistencia.bono_trato);
     const horas = Number(newAsistencia.horas_extra);
     const desc = Number(newAsistencia.descuentos);
     const sueldoMensual = Number(newAsistencia.sueldo_base_mensual);
-    
+
     // Fórmula Legal Chilena (Mensual, 42 horas semanales)
     // 1. Valor por día trabajado (Mes comercial = 30 días)
     const valorDia = sueldoMensual / 30;
-    
+
     // 2. Factor Hora Extra para 42 hrs = (1/30) * 7 / 42 * 1.5 = 0.0083333333333
     const factorHoraExtra = (1 / 30) * (7 / 42) * 1.5;
     const pagoHorasExtra = horas * (sueldoMensual * factorHoraExtra);
-    
+
     const total_pago = (valorDia * dias) + bono + pagoHorasExtra - desc;
-    
+
     const payload = {
       ...newAsistencia,
       obra_id: id,
@@ -432,7 +436,7 @@ export default function ObraDetail() {
       descuentos: desc,
       total_pago: Math.round(total_pago)
     };
-    
+
     await supabase.from('asistencia').insert([payload]);
     setNewAsistencia({ ...newAsistencia, trabajador_id: '', dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
     fetchTab(2); // tab 2 es Asistencia
@@ -528,7 +532,7 @@ export default function ObraDetail() {
     if (field === 'cantidad' || field === 'precio_unitario') {
       finalVal = parseNum(value);
     }
-    
+
     // Update local state first for instant feedback
     setData(prev => ({
       ...prev,
@@ -545,7 +549,7 @@ export default function ObraDetail() {
   const handlePaste = async (e) => {
     const text = e.clipboardData.getData('text');
     if (!text.includes('\t') && !text.includes('\n')) return;
-    
+
     e.preventDefault();
     const rows = text.split('\n')
       .map(row => row.split('\t'))
@@ -609,7 +613,7 @@ export default function ObraDetail() {
     document.addEventListener('pointerup', onPointerUp);
   };
 
-  if (!obra) return <div className="loading-center"><div className="spinner"/>Cargando...</div>;
+  if (!obra) return <div className="loading-center"><div className="spinner" />Cargando...</div>;
 
   const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
   const totalComp = calcCompras(data.compras) + calcAsistencia(data.asistencia) + (data.gasto_espejo || 0);
@@ -625,7 +629,7 @@ export default function ObraDetail() {
           <div style={{ fontSize: 15, fontWeight: 800 }}>{obra.nombre}</div>
           <div className="ts tx">{obra.tipo} · {obra.n_contrato || 'Sin contrato'} · ITO: {obra.ito || '-'}</div>
         </div>
-        <Badge estado={obra.estado}/>
+        <Badge estado={obra.estado} />
       </div>
 
       {/* Tabs */}
@@ -643,33 +647,33 @@ export default function ObraDetail() {
         <div className="tab-panel active">
           <div className="stats-grid">
             {[
-              ['amber','Avance', `${obra.avance||0}%`],
-              ['blue','Presupuesto', clp(totalPres)],
-              ['green','Gasto real', clp(totalComp)],
-              [totalPres - totalComp >= 0 ? 'green':'red','Resultado', clp(totalPres - totalComp)],
-              ['teal','Superficie', `${(obra.superficie||0).toLocaleString('es-CL')} m²`],
-            ].map(([c,l,v]) => (
+              ['amber', 'Avance', `${obra.avance || 0}%`],
+              ['blue', 'Presupuesto', clp(totalPres)],
+              ['green', 'Gasto real', clp(totalComp)],
+              [totalPres - totalComp >= 0 ? 'green' : 'red', 'Resultado', clp(totalPres - totalComp)],
+              ['teal', 'Superficie', `${(obra.superficie || 0).toLocaleString('es-CL')} m²`],
+            ].map(([c, l, v]) => (
               <div className={`stat-card ${c}`} key={l}>
                 <span className="stat-label">{l}</span>
-                <span className="stat-value" style={{ fontSize:15 }}>{v}</span>
+                <span className="stat-value" style={{ fontSize: 15 }}>{v}</span>
               </div>
             ))}
           </div>
           <div className="g2">
             <div className="card">
               <div className="fb">
-                <div className="card-title" style={{ margin:0 }}>📋 Datos</div>
+                <div className="card-title" style={{ margin: 0 }}>📋 Datos</div>
                 <button className="btn btn-s btn-sm" onClick={() => { setEditForm(obra); setShowEditObra(true); }}>✏️ Editar</button>
               </div>
               <div style={{ marginTop: 14 }}>
-                {[['Cliente',obra.cliente],['ITO',obra.ito],['Responsable',obra.responsable],['Inicio',obra.fecha_inicio],['Término est.',obra.fecha_fin],['N° OC - Contrato',obra.n_contrato]].map(([k,v]) => (
-                  <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v||'-'}</span></div>
+                {[['Cliente', obra.cliente], ['ITO', obra.ito], ['Responsable', obra.responsable], ['Inicio', obra.fecha_inicio], ['Término est.', obra.fecha_fin], ['N° OC - Contrato', obra.n_contrato]].map(([k, v]) => (
+                  <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v || '-'}</span></div>
                 ))}
               </div>
             </div>
             <div className="card">
               <div className="card-title">📝 Descripción</div>
-              <div className="nota-box">{obra.descripcion||'Sin descripción.'}</div>
+              <div className="nota-box">{obra.descripcion || 'Sin descripción.'}</div>
             </div>
           </div>
         </div>
@@ -679,11 +683,11 @@ export default function ObraDetail() {
       {tab === 1 && (
         <div className="tab-panel active">
           <div className="fb" style={{ marginBottom: 14 }}>
-            <h3 style={{ fontSize:15,fontWeight:800 }}>Presupuesto Detallado</h3>
-            <div style={{ display:'flex',gap:8 }}>
-              <label className="btn btn-s btn-sm" style={{ cursor:'pointer' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800 }}>Presupuesto Detallado</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <label className="btn btn-s btn-sm" style={{ cursor: 'pointer' }}>
                 🤖 Importar Excel AI
-                <input type="file" accept=".xlsx,.xls,.csv" style={{ display:'none' }} onChange={handleExcelFile}/>
+                <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
               </label>
               <button className="btn btn-d btn-sm" onClick={deleteAllPresupuesto}>🗑 Vaciar Presupuesto</button>
             </div>
@@ -691,13 +695,13 @@ export default function ObraDetail() {
 
           {/* Excel Preview */}
           {excelPreview && (
-            <div className="card" style={{ border:'1px solid var(--accent)' }}>
+            <div className="card" style={{ border: '1px solid var(--accent)' }}>
               <div className="card-title">📊 Vista previa — {excelPreview.length} ítems detectados</div>
               <div className="excel-preview">
                 <table>
                   <thead><tr><th>Código</th><th>Descripción</th><th>Und</th><th>Cantidad</th><th>P. Unitario</th><th>Total</th></tr></thead>
                   <tbody>
-                    {excelPreview.slice(0,20).map((i,idx) => {
+                    {excelPreview.slice(0, 20).map((i, idx) => {
                       const isTitle = (i.cantidad === 0 && i.precio_unitario === 0 && i.codigo);
                       if (isTitle) {
                         return (
@@ -709,7 +713,7 @@ export default function ObraDetail() {
                       }
                       return (
                         <tr key={idx}>
-                          <td className="ts tx">{i.codigo||'-'}</td>
+                          <td className="ts tx">{i.codigo || '-'}</td>
                           <td>{i.descripcion}</td>
                           <td>{i.unidad}</td>
                           <td className="mono">{i.cantidad}</td>
@@ -721,19 +725,19 @@ export default function ObraDetail() {
                   </tbody>
                 </table>
               </div>
-              {excelPreview.length > 20 && <p className="ts tx" style={{ padding:'8px 12px' }}>...y {excelPreview.length - 20} ítems más</p>}
-              <div style={{ display:'flex',gap:8,padding:'12px 0 0' }}>
+              {excelPreview.length > 20 && <p className="ts tx" style={{ padding: '8px 12px' }}>...y {excelPreview.length - 20} ítems más</p>}
+              <div style={{ display: 'flex', gap: 8, padding: '12px 0 0' }}>
                 <button className="btn btn-a" onClick={confirmExcelImport}>✓ Importar {excelPreview.length} ítems</button>
                 <button className="btn btn-s" onClick={() => setExcelPreview(null)}>Cancelar</button>
               </div>
             </div>
           )}
 
-          <div className="fb" style={{ marginBottom: 14, background:'var(--bg2)', padding:12, borderRadius:'var(--r2)', border:'1px solid var(--border)' }}>
-             <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar, <strong>pegar desde Excel (Ctrl+V)</strong> y abrir opciones con click derecho.</p>
+          <div className="fb" style={{ marginBottom: 14, background: 'var(--bg2)', padding: 12, borderRadius: 'var(--r2)', border: '1px solid var(--border)' }}>
+            <p className="ts tx" style={{ margin: 0 }}>💡 Puedes navegar con las flechas (↑↓), pulsar Enter para bajar, <strong>pegar desde Excel (Ctrl+V)</strong> y abrir opciones con click derecho.</p>
           </div>
 
-          <div className="card" style={{ padding:0 }}>
+          <div className="card" style={{ padding: 0 }}>
             <div className="tw" onPaste={handlePaste}>
               <table className="excel-table resizable-table" style={{ width: presupuestoTableWidth, minWidth: presupuestoTableWidth }}>
                 <colgroup>
@@ -759,17 +763,17 @@ export default function ObraDetail() {
                 </thead>
                 <tbody>
                   {data.presupuesto.length === 0 ? (
-                    <tr onContextMenu={(e) => openBudgetContextMenu(e)}><td colSpan="8" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin ítems. Click derecho para agregar una fila o importa desde Excel.</td></tr>
-                  ) : data.presupuesto.map((p,i) => {
+                    <tr onContextMenu={(e) => openBudgetContextMenu(e)}><td colSpan="8" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin ítems. Click derecho para agregar una fila o importa desde Excel.</td></tr>
+                  ) : data.presupuesto.map((p, i) => {
                     const isTitle = (Number(p.cantidad) === 0 && Number(p.precio_unitario) === 0 && p.codigo && !p.descripcion.toLowerCase().includes('instalación'));
-                    
+
                     let sobrecompra = false;
                     const comprasPartida = data.compras_cotejo.filter(c => c.presupuesto_item_id === p.id);
                     const cantComprada = comprasPartida.reduce((s, c) => s + (c.cantidad || 0), 0);
-                    
+
                     if (p.presupuesto_materiales && p.presupuesto_materiales.length > 0) {
                       p.presupuesto_materiales.forEach(mat => {
-                        const compradoMat = comprasPartida.filter(c => (c.descripcion || '').toLowerCase() === (mat.descripcion || '').toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+                        const compradoMat = comprasPartida.filter(c => (c.descripcion || '').toLowerCase() === (mat.descripcion || '').toLowerCase()).reduce((s, c) => s + (c.cantidad || 0), 0);
                         if (compradoMat > mat.cantidad) sobrecompra = true;
                       });
                     } else {
@@ -783,12 +787,12 @@ export default function ObraDetail() {
                         onContextMenu={(e) => openBudgetContextMenu(e, i, p)}
                         style={{ background: isTitle ? 'var(--bg3)' : sobrecompra ? 'rgba(239,68,68,0.07)' : undefined, cursor: 'pointer' }}
                       >
-                        <td className="ts tx" style={{ textAlign: 'center' }}>{i+1}</td>
+                        <td className="ts tx" style={{ textAlign: 'center' }}>{i + 1}</td>
                         <td className="ts">
-                          <input 
+                          <input
                             data-id={p.id}
                             data-field="codigo"
-                            defaultValue={p.codigo} 
+                            defaultValue={p.codigo}
                             onBlur={(e) => updateItemField(p.id, 'codigo', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => handleGridKey(e, p.id, 'codigo', i)}
@@ -799,10 +803,10 @@ export default function ObraDetail() {
                           />
                         </td>
                         <td>
-                          <input 
+                          <input
                             data-id={p.id}
                             data-field="descripcion"
-                            defaultValue={p.descripcion} 
+                            defaultValue={p.descripcion}
                             onBlur={(e) => updateItemField(p.id, 'descripcion', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => handleGridKey(e, p.id, 'descripcion', i)}
@@ -814,10 +818,10 @@ export default function ObraDetail() {
                           />
                         </td>
                         <td>
-                          <input 
+                          <input
                             data-id={p.id}
                             data-field="unidad"
-                            defaultValue={p.unidad} 
+                            defaultValue={p.unidad}
                             onBlur={(e) => updateItemField(p.id, 'unidad', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => handleGridKey(e, p.id, 'unidad', i)}
@@ -826,12 +830,12 @@ export default function ObraDetail() {
                             style={{ fontSize: 10 }}
                           />
                         </td>
-                        <td className="mono" style={{ textAlign:'right' }}>
-                          <input 
+                        <td className="mono" style={{ textAlign: 'right' }}>
+                          <input
                             data-id={p.id}
                             data-field="cantidad"
-                            type="text" 
-                            defaultValue={p.cantidad === 0 ? '' : p.cantidad} 
+                            type="text"
+                            defaultValue={p.cantidad === 0 ? '' : p.cantidad}
                             onBlur={(e) => updateItemField(p.id, 'cantidad', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => handleGridKey(e, p.id, 'cantidad', i)}
@@ -839,15 +843,15 @@ export default function ObraDetail() {
                             className="excel-input right"
                           />
                         </td>
-                        <td className="mono" style={{ textAlign:'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
+                        <td className="mono" style={{ textAlign: 'right', color: sobrecompra ? 'var(--red)' : cantComprada > 0 ? 'var(--green)' : 'var(--text3)', fontWeight: cantComprada > 0 ? 700 : 400 }}>
                           {(p.presupuesto_materiales && p.presupuesto_materiales.length > 0) ? 'Sub-lista' : (cantComprada > 0 ? cantComprada : '-')}{sobrecompra && ` ⚠️`}
                         </td>
-                        <td className="mono" style={{ textAlign:'right' }}>
-                          <input 
+                        <td className="mono" style={{ textAlign: 'right' }}>
+                          <input
                             data-id={p.id}
                             data-field="precio_unitario"
-                            type="text" 
-                            defaultValue={p.precio_unitario === 0 ? '' : p.precio_unitario} 
+                            type="text"
+                            defaultValue={p.precio_unitario === 0 ? '' : p.precio_unitario}
                             onBlur={(e) => updateItemField(p.id, 'precio_unitario', e.target.value)}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => handleGridKey(e, p.id, 'precio_unitario', i)}
@@ -855,13 +859,13 @@ export default function ObraDetail() {
                             className="excel-input right"
                           />
                         </td>
-                        <td className="mono" style={{ textAlign:'right',fontWeight:700,color:'var(--accent)' }}>
+                        <td className="mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>
                           {(() => {
                             const c = cleanNum(p.cantidad);
                             const u = cleanNum(p.precio_unitario);
                             const res = c * u;
                             if (res === 0 && (c > 0 || u > 0)) {
-                              return <span style={{color:'var(--orange)', fontSize: 10}}>Falta: C:{c} P:{u}</span>;
+                              return <span style={{ color: 'var(--orange)', fontSize: 10 }}>Falta: C:{c} P:{u}</span>;
                             }
                             if (res === 0 && !isTitle) return clp(0);
                             return clp(res);
@@ -870,8 +874,8 @@ export default function ObraDetail() {
                       </tr>
                     );
                   })}
-                  </tbody>
-                </table>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -896,66 +900,66 @@ export default function ObraDetail() {
           )}
 
           {/* Resumen financiero */}
-            <div style={{ background:'var(--bg3)',padding:'14px 18px',borderTop:'1px solid var(--border)' }}>
-              <div style={{ display:'flex',justifyContent:'flex-end',gap:60 }}>
-                <div style={{ textAlign:'right' }}>
-                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>Costo directo</div>
-                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6 }}>
-                    Gastos Generales
-                    <input type="number" step="0.1" value={obra.gastos_generales_pct} onChange={e => updatePct('gastos_generales_pct', e.target.value)} style={{ width:40,background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text)',padding:'0 4px',borderRadius:'var(--r2)',fontSize:10,textAlign:'center',height:18 }} /> {'%'}
-                  </div>
-                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6 }}>
-                    Utilidades
-                    <input type="number" step="0.1" value={obra.utilidad_pct} onChange={e => updatePct('utilidad_pct', e.target.value)} style={{ width:40,background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text)',padding:'0 4px',borderRadius:'var(--r2)',fontSize:10,textAlign:'center',height:18 }} /> {'%'}
-                  </div>
-                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>Subtotal Neto</div>
-                  <div style={{ fontSize:11,color:'var(--text2)',marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>IVA (19 %)</div>
-                  <div style={{ fontSize:11,color:'var(--accent)',fontWeight:800,marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>PRESUPUESTO TOTAL</div>
+          <div style={{ background: 'var(--bg3)', padding: '14px 18px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 60 }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>Costo directo</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                  Gastos Generales
+                  <input type="number" step="0.1" value={obra.gastos_generales_pct} onChange={e => updatePct('gastos_generales_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
                 </div>
-                <div style={{ textAlign:'right',fontFamily:'Courier New' }}>
-                  {[subtotal, gastosGenerales, utilidad, neto, iva, totalPres].map((v,i) => (
-                    <div key={i} style={{ fontSize: i===5?14:11,color:i===5?'var(--accent)':'var(--text)',fontWeight:i===5?800:600,marginBottom:6,lineHeight:'1.6',height:18,display:'flex',alignItems:'center',justifyContent:'flex-end' }}>{clp(v)}</div>
-                  ))}
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                  Utilidades
+                  <input type="number" step="0.1" value={obra.utilidad_pct} onChange={e => updatePct('utilidad_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
                 </div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>Subtotal Neto</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>IVA (19 %)</div>
+                <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>PRESUPUESTO TOTAL</div>
+              </div>
+              <div style={{ textAlign: 'right', fontFamily: 'Courier New' }}>
+                {[subtotal, gastosGenerales, utilidad, neto, iva, totalPres].map((v, i) => (
+                  <div key={i} style={{ fontSize: i === 5 ? 14 : 11, color: i === 5 ? 'var(--accent)' : 'var(--text)', fontWeight: i === 5 ? 800 : 600, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{clp(v)}</div>
+                ))}
               </div>
             </div>
           </div>
+        </div>
       )}
 
       {/* ── TAB 2: RRHH - ASISTENCIA ── */}
       {tab === 2 && (
         <div className="tab-panel active">
-          <div className="card" style={{ marginBottom:14 }}>
+          <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">👷 Registrar Asistencia - Trato</div>
-            <form onSubmit={addAsistencia} className="form-grid" style={{ alignItems:'flex-end' }}>
+            <form onSubmit={addAsistencia} className="form-grid" style={{ alignItems: 'flex-end' }}>
               <div className="form-group">
                 <label>Trabajador</label>
                 <select required value={newAsistencia.trabajador_id} onChange={e => {
                   const tid = e.target.value;
                   const tr = trabajadores.find(t => t.id === tid);
-                  setNewAsistencia({...newAsistencia, trabajador_id: tid, sueldo_base_mensual: tr ? tr.sueldo_base_mensual : ''});
+                  setNewAsistencia({ ...newAsistencia, trabajador_id: tid, sueldo_base_mensual: tr ? tr.sueldo_base_mensual : '' });
                 }}>
                   <option value="">Seleccione...</option>
                   {trabajadores.map(t => <option key={t.id} value={t.id}>{t.nombre} ({t.cargo})</option>)}
                 </select>
               </div>
-              <div className="form-group"><label>Sueldo Mensual ($)</label><input type="number" required value={newAsistencia.sueldo_base_mensual} onChange={e => setNewAsistencia({...newAsistencia, sueldo_base_mensual: e.target.value})} /></div>
-              <div className="form-group"><label>Fecha</label><input type="date" required value={newAsistencia.fecha} onChange={e => setNewAsistencia({...newAsistencia, fecha: e.target.value})} /></div>
-              <div className="form-group"><label>Días Trab.</label><input type="number" step="0.5" min="0" required value={newAsistencia.dias_trabajados} onChange={e => setNewAsistencia({...newAsistencia, dias_trabajados: e.target.value})} /></div>
-              <div className="form-group"><label>Horas Extras</label><input type="number" step="0.5" min="0" required value={newAsistencia.horas_extra} onChange={e => setNewAsistencia({...newAsistencia, horas_extra: e.target.value})} /></div>
-              <div className="form-group"><label>Bono - Trato ($)</label><input type="number" required value={newAsistencia.bono_trato} onChange={e => setNewAsistencia({...newAsistencia, bono_trato: e.target.value})} /></div>
-              <div className="form-group"><label>Descuentos ($)</label><input type="number" required value={newAsistencia.descuentos} onChange={e => setNewAsistencia({...newAsistencia, descuentos: e.target.value})} /></div>
+              <div className="form-group"><label>Sueldo Mensual ($)</label><input type="number" required value={newAsistencia.sueldo_base_mensual} onChange={e => setNewAsistencia({ ...newAsistencia, sueldo_base_mensual: e.target.value })} /></div>
+              <div className="form-group"><label>Fecha</label><input type="date" required value={newAsistencia.fecha} onChange={e => setNewAsistencia({ ...newAsistencia, fecha: e.target.value })} /></div>
+              <div className="form-group"><label>Días Trab.</label><input type="number" step="0.5" min="0" required value={newAsistencia.dias_trabajados} onChange={e => setNewAsistencia({ ...newAsistencia, dias_trabajados: e.target.value })} /></div>
+              <div className="form-group"><label>Horas Extras</label><input type="number" step="0.5" min="0" required value={newAsistencia.horas_extra} onChange={e => setNewAsistencia({ ...newAsistencia, horas_extra: e.target.value })} /></div>
+              <div className="form-group"><label>Bono - Trato ($)</label><input type="number" required value={newAsistencia.bono_trato} onChange={e => setNewAsistencia({ ...newAsistencia, bono_trato: e.target.value })} /></div>
+              <div className="form-group"><label>Descuentos ($)</label><input type="number" required value={newAsistencia.descuentos} onChange={e => setNewAsistencia({ ...newAsistencia, descuentos: e.target.value })} /></div>
               <button className="btn btn-a">Guardar Planilla</button>
             </form>
           </div>
 
-          <div className="card" style={{ padding:0 }}>
+          <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
                 <thead><tr><th>Fecha</th><th>Trabajador</th><th>Cargo</th><th>Días</th><th>H. Ext</th><th>Bonos</th><th>Dsctos</th><th>Total Pago</th><th></th></tr></thead>
                 <tbody>
                   {data.asistencia.length === 0 ? (
-                    <tr><td colSpan="9" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>No hay registros de asistencia.</td></tr>
+                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay registros de asistencia.</td></tr>
                   ) : data.asistencia.map(a => (
                     <tr key={a.id}>
                       <td className="ts">{a.fecha}</td>
@@ -964,15 +968,15 @@ export default function ObraDetail() {
                       <td className="mono">{a.dias_trabajados}</td>
                       <td className="mono">{a.horas_extra}</td>
                       <td className="mono tg">{clp(a.bono_trato)}</td>
-                      <td className="mono" style={{ color:'var(--red)' }}>{a.descuentos > 0 ? clp(-a.descuentos) : 0}</td>
-                      <td className="mono" style={{ fontWeight:800, color:'var(--accent)' }}>{clp(a.total_pago)}</td>
+                      <td className="mono" style={{ color: 'var(--red)' }}>{a.descuentos > 0 ? clp(-a.descuentos) : 0}</td>
+                      <td className="mono" style={{ fontWeight: 800, color: 'var(--accent)' }}>{clp(a.total_pago)}</td>
                       <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('asistencia', a.id)}>✕</button></td>
                     </tr>
                   ))}
                   {data.asistencia.length > 0 && (
-                    <tr style={{ background:'var(--bg3)', fontWeight:800 }}>
-                      <td colSpan="7" style={{ textAlign:'right' }}>Total Mano de Obra:</td>
-                      <td className="mono" style={{ color:'var(--accent)' }}>{clp(calcAsistencia(data.asistencia))}</td>
+                    <tr style={{ background: 'var(--bg3)', fontWeight: 800 }}>
+                      <td colSpan="7" style={{ textAlign: 'right' }}>Total Mano de Obra:</td>
+                      <td className="mono" style={{ color: 'var(--accent)' }}>{clp(calcAsistencia(data.asistencia))}</td>
                       <td></td>
                     </tr>
                   )}
@@ -986,59 +990,59 @@ export default function ObraDetail() {
       {/* ── TAB 3: COMPRAS ── */}
       {tab === 3 && (
         <div className="tab-panel active">
-          <form onSubmit={addCompra} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
-            <div style={{ display:'grid',gridTemplateColumns:'1fr 60px 80px 110px 1fr 110px 110px 44px',gap:8,alignItems:'end' }}>
-              <div className="form-group" style={{ margin:0 }}>
+          <form onSubmit={addCompra} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, marginBottom: 14 }}>
+            <div className="compra-form-grid">
+              <div className="form-group compra-field-descripcion" style={{ margin: 0 }}>
                 <label>Descripción *</label>
-                <input required list="materiales-list" value={newCompra.descripcion} onChange={e=>setNewCompra({...newCompra,descripcion:e.target.value})}/>
+                <input required list="materiales-list" value={newCompra.descripcion} onChange={e => setNewCompra({ ...newCompra, descripcion: e.target.value })} />
                 <datalist id="materiales-list">
                   {materialesGlobales.map((m, i) => <option key={i} value={m} />)}
                 </datalist>
               </div>
-              <div className="form-group" style={{ margin:0 }}><label>Und</label><input value={newCompra.unidad} onChange={e=>setNewCompra({...newCompra,unidad:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>Cantidad</label><input type="number" step="0.01" required value={newCompra.cantidad} onChange={e=>setNewCompra({...newCompra,cantidad:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>P. Unit</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e=>setNewCompra({...newCompra,precio_unitario:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>Proveedor</label><input value={newCompra.proveedor} onChange={e=>setNewCompra({...newCompra,proveedor:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>N° Doc</label><input value={newCompra.n_documento} onChange={e=>setNewCompra({...newCompra,n_documento:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}>
+              <div className="form-group" style={{ margin: 0 }}><label>Und</label><input value={newCompra.unidad} onChange={e => setNewCompra({ ...newCompra, unidad: e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label>Cantidad</label><input type="number" step="0.01" required value={newCompra.cantidad} onChange={e => setNewCompra({ ...newCompra, cantidad: e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label>P. Unit</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e => setNewCompra({ ...newCompra, precio_unitario: e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label>Proveedor</label><input value={newCompra.proveedor} onChange={e => setNewCompra({ ...newCompra, proveedor: e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label>N° Doc</label><input value={newCompra.n_documento} onChange={e => setNewCompra({ ...newCompra, n_documento: e.target.value })} /></div>
+              <div className="form-group compra-field-partida" style={{ margin: 0 }}>
                 <label>Partida Asignada</label>
-                <select value={newCompra.presupuesto_item_id} onChange={e=>setNewCompra({...newCompra,presupuesto_item_id:e.target.value})}>
+                <select value={newCompra.presupuesto_item_id} onChange={e => setNewCompra({ ...newCompra, presupuesto_item_id: e.target.value })}>
                   <option value="">Sin partida</option>
                   {presupuestoItems.filter(p => p.cantidad > 0 || p.precio_unitario > 0).map(p => (
                     <option key={p.id} value={p.id}>{p.codigo ? `${p.codigo} — ` : ''}{p.descripcion} ({p.unidad})</option>
                   ))}
                 </select>
               </div>
-              <div className="form-group" style={{ margin:0 }}><label>Fecha</label><input type="date" max={today()} value={newCompra.fecha} onChange={e=>setNewCompra({...newCompra,fecha:e.target.value})}/></div>
-              <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
+              <div className="form-group compra-field-fecha" style={{ margin: 0 }}><label>Fecha</label><input type="date" max={today()} value={newCompra.fecha} onChange={e => setNewCompra({ ...newCompra, fecha: e.target.value })} /></div>
+              <button type="submit" className="btn btn-a compra-submit" aria-label="Agregar compra">+</button>
             </div>
           </form>
 
           <div className="fb" style={{ marginBottom: 14 }}>
-            <h3 style={{ fontSize:15,fontWeight:800 }}>Historial de Compras</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 800 }}>Historial de Compras</h3>
             <button className="btn btn-s btn-sm" onClick={() => setShowResumenCompras(true)}>📊 Ver Resumen por Material</button>
           </div>
 
-          <div className="card" style={{ padding:0 }}>
+          <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
-                <thead><tr><th>N°</th><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cantidad</th><th style={{ textAlign:'right' }}>P. Unitario</th><th style={{ textAlign:'right' }}>Total</th><th>Proveedor</th><th>N° Doc</th><th>Fecha</th><th></th></tr></thead>
+                <thead><tr><th>N°</th><th>Descripción</th><th>Und</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>P. Unitario</th><th style={{ textAlign: 'right' }}>Total</th><th>Proveedor</th><th>N° Doc</th><th>Fecha</th><th></th></tr></thead>
                 <tbody>
                   {data.compras.length === 0 ? (
-                    <tr><td colSpan="10" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin compras registradas.</td></tr>
-                  ) : data.compras.map((c,i) => {
+                    <tr><td colSpan="10" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin compras registradas.</td></tr>
+                  ) : data.compras.map((c, i) => {
                     const tot = c.cantidad * c.precio_unitario;
                     return (
                       <tr key={c.id}>
-                        <td className="ts tx">{i+1}</td>
+                        <td className="ts tx">{i + 1}</td>
                         <td><strong>{c.descripcion}</strong></td>
                         <td className="ts tx">{c.unidad}</td>
-                        <td className="mono" style={{ textAlign:'right' }}>{c.cantidad}</td>
-                        <td className="mono" style={{ textAlign:'right' }}>{clp(c.precio_unitario)}</td>
-                        <td className="mono" style={{ textAlign:'right',fontWeight:700 }}>{clp(tot)}</td>
-                        <td className="ts tx">{c.proveedor||'-'}</td>
-                        <td className="ts tx">{c.n_documento||'-'}</td>
-                        <td className="ts">{c.fecha||'-'}</td>
+                        <td className="mono" style={{ textAlign: 'right' }}>{c.cantidad}</td>
+                        <td className="mono" style={{ textAlign: 'right' }}>{clp(c.precio_unitario)}</td>
+                        <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{clp(tot)}</td>
+                        <td className="ts tx">{c.proveedor || '-'}</td>
+                        <td className="ts tx">{c.n_documento || '-'}</td>
+                        <td className="ts">{c.fecha || '-'}</td>
                         <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('compras', c.id)}>✕</button></td>
                       </tr>
                     );
@@ -1046,16 +1050,16 @@ export default function ObraDetail() {
                 </tbody>
               </table>
             </div>
-            <div style={{ padding:'12px 18px',borderTop:'1px solid var(--border)',textAlign:'right' }}>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
               <span className="ts tx">Total compras: </span>
-              <span style={{ fontFamily:'Courier New',fontWeight:800,fontSize:16,color:'var(--accent)',marginLeft:8 }}>{clp(totalComp)}</span>
+              <span style={{ fontFamily: 'Courier New', fontWeight: 800, fontSize: 16, color: 'var(--accent)', marginLeft: 8 }}>{clp(totalComp)}</span>
             </div>
           </div>
           {totalPres > 0 && (
-            <div className="card" style={{ border:`1px solid ${totalComp > totalPres ? 'var(--red)' : 'var(--green)'}` }}>
+            <div className="card" style={{ border: `1px solid ${totalComp > totalPres ? 'var(--red)' : 'var(--green)'}` }}>
               <div className="fb">
                 <span className="ts">Resultado presupuestario</span>
-                <span style={{ fontFamily:'Courier New',fontWeight:800,fontSize:16,color: totalPres - totalComp >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                <span style={{ fontFamily: 'Courier New', fontWeight: 800, fontSize: 16, color: totalPres - totalComp >= 0 ? 'var(--green)' : 'var(--red)' }}>
                   {totalPres - totalComp >= 0 ? '✅' : '⚠️'} {clp(totalPres - totalComp)}
                 </span>
               </div>
@@ -1069,13 +1073,13 @@ export default function ObraDetail() {
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">📝 Agregar Cotización</div>
-            <form onSubmit={addCotizacion} className="form-grid" style={{ alignItems:'flex-end' }}>
-              <div className="form-group"><label>Ítem - Descripción</label><input required value={newCotizacion.item} onChange={e=>setNewCotizacion({...newCotizacion,item:e.target.value})} /></div>
-              <div className="form-group"><label>Proveedor</label><input required value={newCotizacion.proveedor} onChange={e=>setNewCotizacion({...newCotizacion,proveedor:e.target.value})} /></div>
-              <div className="form-group"><label>Monto ($)</label><input type="number" required value={newCotizacion.monto} onChange={e=>setNewCotizacion({...newCotizacion,monto:e.target.value})} /></div>
+            <form onSubmit={addCotizacion} className="form-grid" style={{ alignItems: 'flex-end' }}>
+              <div className="form-group"><label>Ítem - Descripción</label><input required value={newCotizacion.item} onChange={e => setNewCotizacion({ ...newCotizacion, item: e.target.value })} /></div>
+              <div className="form-group"><label>Proveedor</label><input required value={newCotizacion.proveedor} onChange={e => setNewCotizacion({ ...newCotizacion, proveedor: e.target.value })} /></div>
+              <div className="form-group"><label>Monto ($)</label><input type="number" required value={newCotizacion.monto} onChange={e => setNewCotizacion({ ...newCotizacion, monto: e.target.value })} /></div>
               <div className="form-group">
                 <label>Estado</label>
-                <select value={newCotizacion.estado} onChange={e=>setNewCotizacion({...newCotizacion,estado:e.target.value})}>
+                <select value={newCotizacion.estado} onChange={e => setNewCotizacion({ ...newCotizacion, estado: e.target.value })}>
                   <option>Pendiente</option>
                   <option>Aprobado</option>
                   <option>Rechazado</option>
@@ -1084,21 +1088,21 @@ export default function ObraDetail() {
               <button className="btn btn-a">+</button>
             </form>
           </div>
-          <div className="card" style={{ padding:0 }}>
+          <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
                 <thead><tr><th>Ítem</th><th>Proveedor</th><th>Monto</th><th>F. Pago</th><th>Estado</th><th>Notas</th><th></th></tr></thead>
                 <tbody>
                   {data.cotizaciones.length === 0 ? (
-                    <tr><td colSpan="7" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin cotizaciones. Agrégalas desde el módulo de Cotizaciones.</td></tr>
+                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin cotizaciones. Agrégalas desde el módulo de Cotizaciones.</td></tr>
                   ) : data.cotizaciones.map(c => (
                     <tr key={c.id}>
                       <td><strong>{c.item}</strong></td>
                       <td>{c.proveedor}</td>
                       <td className="mono">{clp(c.monto)}</td>
                       <td className="ts tx">{c.forma_pago}</td>
-                      <td><Badge estado={c.estado}/></td>
-                      <td className="ts tx">{c.notas||'-'}</td>
+                      <td><Badge estado={c.estado} /></td>
+                      <td className="ts tx">{c.notas || '-'}</td>
                       <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('cotizaciones', c.id)}>✕</button></td>
                     </tr>
                   ))}
@@ -1114,34 +1118,34 @@ export default function ObraDetail() {
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">🤝 Registrar Subcontrato</div>
-            <form onSubmit={addSubcontrato} className="form-grid" style={{ alignItems:'flex-end' }}>
-              <div className="form-group"><label>Empresa</label><input required value={newSubcontrato.empresa} onChange={e=>setNewSubcontrato({...newSubcontrato,empresa:e.target.value})} /></div>
-              <div className="form-group"><label>Especialidad</label><input required value={newSubcontrato.especialidad} onChange={e=>setNewSubcontrato({...newSubcontrato,especialidad:e.target.value})} /></div>
-              <div className="form-group"><label>Monto Contrato ($)</label><input type="number" required value={newSubcontrato.monto_contrato} onChange={e=>setNewSubcontrato({...newSubcontrato,monto_contrato:e.target.value})} /></div>
-              <div className="form-group"><label>Retención (%)</label><input type="number" value={newSubcontrato.retencion_pct} onChange={e=>setNewSubcontrato({...newSubcontrato,retencion_pct:e.target.value})} /></div>
+            <form onSubmit={addSubcontrato} className="form-grid" style={{ alignItems: 'flex-end' }}>
+              <div className="form-group"><label>Empresa</label><input required value={newSubcontrato.empresa} onChange={e => setNewSubcontrato({ ...newSubcontrato, empresa: e.target.value })} /></div>
+              <div className="form-group"><label>Especialidad</label><input required value={newSubcontrato.especialidad} onChange={e => setNewSubcontrato({ ...newSubcontrato, especialidad: e.target.value })} /></div>
+              <div className="form-group"><label>Monto Contrato ($)</label><input type="number" required value={newSubcontrato.monto_contrato} onChange={e => setNewSubcontrato({ ...newSubcontrato, monto_contrato: e.target.value })} /></div>
+              <div className="form-group"><label>Retención (%)</label><input type="number" value={newSubcontrato.retencion_pct} onChange={e => setNewSubcontrato({ ...newSubcontrato, retencion_pct: e.target.value })} /></div>
               <button className="btn btn-a">+</button>
             </form>
           </div>
-          <div className="card" style={{ padding:0 }}>
+          <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
                 <thead><tr><th>Empresa</th><th>Especialidad</th><th>Monto</th><th>Avance</th><th>Pagado</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   {data.subcontratos.length === 0 ? (
-                    <tr><td colSpan="7" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin subcontratos para esta obra.</td></tr>
+                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin subcontratos para esta obra.</td></tr>
                   ) : data.subcontratos.map(s => (
                     <tr key={s.id}>
-                      <td><strong>{s.empresa}</strong><div className="ts tx">{s.rut||''}</div></td>
-                      <td><span style={{ background:'var(--bg4)',padding:'2px 7px',borderRadius:4,fontSize:10,color:'var(--text2)' }}>{s.especialidad}</span></td>
+                      <td><strong>{s.empresa}</strong><div className="ts tx">{s.rut || ''}</div></td>
+                      <td><span style={{ background: 'var(--bg4)', padding: '2px 7px', borderRadius: 4, fontSize: 10, color: 'var(--text2)' }}>{s.especialidad}</span></td>
                       <td className="mono">{clp(s.monto_contrato)}</td>
                       <td>
-                        <div style={{ display:'flex',alignItems:'center',gap:5 }}>
-                          <div className="pb2" style={{ width:50 }}><div className="pf" style={{ width:`${s.avance}%`,background:'var(--green)' }}/></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div className="pb2" style={{ width: 50 }}><div className="pf" style={{ width: `${s.avance}%`, background: 'var(--green)' }} /></div>
                           {s.avance}%
                         </div>
                       </td>
                       <td className="mono tg">{clp(s.monto_pagado)}</td>
-                      <td><Badge estado={s.estado}/></td>
+                      <td><Badge estado={s.estado} /></td>
                       <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('subcontratos', s.id)}>✕</button></td>
                     </tr>
                   ))}
@@ -1157,13 +1161,13 @@ export default function ObraDetail() {
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">📅 Agregar Hito - Tarea</div>
-            <form onSubmit={addHito} className="form-grid" style={{ alignItems:'flex-end' }}>
-              <div className="form-group"><label>Nombre del Hito</label><input required value={newHito.nombre} onChange={e=>setNewHito({...newHito,nombre:e.target.value})} /></div>
-              <div className="form-group"><label>Inicio</label><input type="date" value={newHito.fecha_inicio_plan} onChange={e=>setNewHito({...newHito,fecha_inicio_plan:e.target.value})} /></div>
-              <div className="form-group"><label>Fin Plan</label><input type="date" value={newHito.fecha_fin_plan} onChange={e=>setNewHito({...newHito,fecha_fin_plan:e.target.value})} /></div>
+            <form onSubmit={addHito} className="form-grid" style={{ alignItems: 'flex-end' }}>
+              <div className="form-group"><label>Nombre del Hito</label><input required value={newHito.nombre} onChange={e => setNewHito({ ...newHito, nombre: e.target.value })} /></div>
+              <div className="form-group"><label>Inicio</label><input type="date" value={newHito.fecha_inicio_plan} onChange={e => setNewHito({ ...newHito, fecha_inicio_plan: e.target.value })} /></div>
+              <div className="form-group"><label>Fin Plan</label><input type="date" value={newHito.fecha_fin_plan} onChange={e => setNewHito({ ...newHito, fecha_fin_plan: e.target.value })} /></div>
               <div className="form-group">
                 <label>Estado</label>
-                <select value={newHito.estado} onChange={e=>setNewHito({...newHito,estado:e.target.value})}>
+                <select value={newHito.estado} onChange={e => setNewHito({ ...newHito, estado: e.target.value })}>
                   <option>Pendiente</option>
                   <option>En curso</option>
                   <option>Completado</option>
@@ -1174,15 +1178,15 @@ export default function ObraDetail() {
             </form>
           </div>
           {data.hitos.map(h => {
-            const col = h.estado==='Completado'?'var(--green)':h.estado==='En curso'?'var(--blue)':h.estado==='Atrasado'?'var(--red)':'var(--bg5)';
+            const col = h.estado === 'Completado' ? 'var(--green)' : h.estado === 'En curso' ? 'var(--blue)' : h.estado === 'Atrasado' ? 'var(--red)' : 'var(--bg5)';
             return (
               <div className="gantt-row" key={h.id}>
                 <div className="gantt-label" title={h.nombre}>{h.nombre}</div>
                 <div className="gantt-bar-wrap">
-                  <div className="gantt-bar" style={{ width:`${h.avance||0}%`,background:col }}>{(h.avance||0)>=20?`${h.avance}%`:''}</div>
-                  {(h.avance||0)<20 && <span style={{ position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text2)' }}>{h.avance||0}%</span>}
+                  <div className="gantt-bar" style={{ width: `${h.avance || 0}%`, background: col }}>{(h.avance || 0) >= 20 ? `${h.avance}%` : ''}</div>
+                  {(h.avance || 0) < 20 && <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: 'var(--text2)' }}>{h.avance || 0}%</span>}
                 </div>
-                <Badge estado={h.estado}/>
+                <Badge estado={h.estado} />
                 <button className="btn btn-d btn-sm" onClick={() => deleteRow('hitos', h.id)}>✕</button>
               </div>
             );
@@ -1196,21 +1200,21 @@ export default function ObraDetail() {
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">💰 Emitir Estado de Pago</div>
-            <form onSubmit={addEstadoPago} className="form-grid" style={{ alignItems:'flex-end' }}>
-              <div className="form-group"><label>EPO N°</label><input required value={newEstadoPago.numero} onChange={e=>setNewEstadoPago({...newEstadoPago,numero:e.target.value})} /></div>
-              <div className="form-group"><label>Descripción</label><input required value={newEstadoPago.descripcion} onChange={e=>setNewEstadoPago({...newEstadoPago,descripcion:e.target.value})} /></div>
-              <div className="form-group"><label>Monto Bruto ($)</label><input type="number" required value={newEstadoPago.monto_bruto} onChange={e=>setNewEstadoPago({...newEstadoPago,monto_bruto:e.target.value})} /></div>
-              <div className="form-group"><label>Retención (%)</label><input type="number" value={newEstadoPago.retencion_pct} onChange={e=>setNewEstadoPago({...newEstadoPago,retencion_pct:e.target.value})} /></div>
+            <form onSubmit={addEstadoPago} className="form-grid" style={{ alignItems: 'flex-end' }}>
+              <div className="form-group"><label>EPO N°</label><input required value={newEstadoPago.numero} onChange={e => setNewEstadoPago({ ...newEstadoPago, numero: e.target.value })} /></div>
+              <div className="form-group"><label>Descripción</label><input required value={newEstadoPago.descripcion} onChange={e => setNewEstadoPago({ ...newEstadoPago, descripcion: e.target.value })} /></div>
+              <div className="form-group"><label>Monto Bruto ($)</label><input type="number" required value={newEstadoPago.monto_bruto} onChange={e => setNewEstadoPago({ ...newEstadoPago, monto_bruto: e.target.value })} /></div>
+              <div className="form-group"><label>Retención (%)</label><input type="number" value={newEstadoPago.retencion_pct} onChange={e => setNewEstadoPago({ ...newEstadoPago, retencion_pct: e.target.value })} /></div>
               <button className="btn btn-a">+</button>
             </form>
           </div>
-          <div className="card" style={{ padding:0 }}>
+          <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
                 <thead><tr><th>EPO N°</th><th>Descripción</th><th>Monto bruto</th><th>Neto</th><th>F. Emisión</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   {data.estados_pago.length === 0 ? (
-                    <tr><td colSpan="7" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>Sin estados de pago para esta obra.</td></tr>
+                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin estados de pago para esta obra.</td></tr>
                   ) : data.estados_pago.map(ep => {
                     const neto = ep.monto_bruto - Math.round((ep.monto_bruto * ep.retencion_pct) / 100);
                     return (
@@ -1220,7 +1224,7 @@ export default function ObraDetail() {
                         <td className="mono">{clp(ep.monto_bruto)}</td>
                         <td className="mono tg">{clp(neto)}</td>
                         <td className="ts">{ep.fecha_emision}</td>
-                        <td><Badge estado={ep.estado}/></td>
+                        <td><Badge estado={ep.estado} /></td>
                         <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('estados_pago', ep.id)}>✕</button></td>
                       </tr>
                     );
@@ -1286,7 +1290,7 @@ export default function ObraDetail() {
           <div className="tw">
             <table>
               <thead>
-                <tr><th>Material - Descripción</th><th>Und</th><th style={{textAlign:'right'}}>Cant. Total</th><th style={{textAlign:'right'}}>P. Unit. Promedio</th><th style={{textAlign:'right'}}>Total Gastado</th></tr>
+                <tr><th>Material - Descripción</th><th>Und</th><th style={{ textAlign: 'right' }}>Cant. Total</th><th style={{ textAlign: 'right' }}>P. Unit. Promedio</th><th style={{ textAlign: 'right' }}>Total Gastado</th></tr>
               </thead>
               <tbody>
                 {Object.values(
@@ -1297,20 +1301,20 @@ export default function ObraDetail() {
                     return acc;
                   }, {})
                 )
-                .sort((a,b) => b.total - a.total)
-                .map((m, i) => (
-                  <tr key={i}>
-                    <td><strong>{m.desc}</strong></td>
-                    <td className="ts tx">{m.und}</td>
-                    <td className="mono" style={{textAlign:'right'}}>{m.cant}</td>
-                    <td className="mono" style={{textAlign:'right'}}>{clp(m.total / (m.cant || 1))}</td>
-                    <td className="mono" style={{textAlign:'right', fontWeight:700, color:'var(--accent)'}}>{clp(m.total)}</td>
-                  </tr>
-                ))}
+                  .sort((a, b) => b.total - a.total)
+                  .map((m, i) => (
+                    <tr key={i}>
+                      <td><strong>{m.desc}</strong></td>
+                      <td className="ts tx">{m.und}</td>
+                      <td className="mono" style={{ textAlign: 'right' }}>{m.cant}</td>
+                      <td className="mono" style={{ textAlign: 'right' }}>{clp(m.total / (m.cant || 1))}</td>
+                      <td className="mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>{clp(m.total)}</td>
+                    </tr>
+                  ))}
                 {data.compras.length > 0 && (
-                  <tr style={{ background:'var(--bg3)' }}>
-                    <td colSpan="4" style={{ textAlign:'right', fontWeight:800 }}>TOTAL COMPRAS:</td>
-                    <td className="mono" style={{ textAlign:'right', fontWeight:800, color:'var(--accent)' }}>{clp(calcCompras(data.compras))}</td>
+                  <tr style={{ background: 'var(--bg3)' }}>
+                    <td colSpan="4" style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL COMPRAS:</td>
+                    <td className="mono" style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>{clp(calcCompras(data.compras))}</td>
                   </tr>
                 )}
               </tbody>
@@ -1325,32 +1329,32 @@ export default function ObraDetail() {
       {/* Modal Sub-Lista de Materiales Requeridos */}
       {selectedPartida && (
         <Modal title={`📦 Materiales Requeridos — ${selectedPartida.descripcion}`} onClose={() => { setSelectedPartida(null); fetchTab(1); }}>
-          <form onSubmit={addMaterialRequerido} style={{ background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:14,marginBottom:14 }}>
-            <div style={{ display:'grid',gridTemplateColumns:'1fr 70px 100px 44px',gap:8,alignItems:'end' }}>
-              <div className="form-group" style={{ margin:0 }}>
+          <form onSubmit={addMaterialRequerido} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 44px', gap: 8, alignItems: 'end' }}>
+              <div className="form-group" style={{ margin: 0 }}>
                 <label>Descripción *</label>
-                <input required list="materiales-list" value={newMaterial.descripcion} onChange={e=>setNewMaterial({...newMaterial,descripcion:e.target.value})}/>
+                <input required list="materiales-list" value={newMaterial.descripcion} onChange={e => setNewMaterial({ ...newMaterial, descripcion: e.target.value })} />
               </div>
-              <div className="form-group" style={{ margin:0 }}><label>Und</label><input value={newMaterial.unidad} onChange={e=>setNewMaterial({...newMaterial,unidad:e.target.value})}/></div>
-              <div className="form-group" style={{ margin:0 }}><label>Cant.</label><input type="number" step="0.01" required value={newMaterial.cantidad} onChange={e=>setNewMaterial({...newMaterial,cantidad:e.target.value})}/></div>
-              <button type="submit" className="btn btn-a" style={{ alignSelf:'flex-end' }}>+</button>
+              <div className="form-group" style={{ margin: 0 }}><label>Und</label><input value={newMaterial.unidad} onChange={e => setNewMaterial({ ...newMaterial, unidad: e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label>Cant.</label><input type="number" step="0.01" required value={newMaterial.cantidad} onChange={e => setNewMaterial({ ...newMaterial, cantidad: e.target.value })} /></div>
+              <button type="submit" className="btn btn-a" style={{ alignSelf: 'flex-end' }}>+</button>
             </div>
           </form>
           <div className="tw" style={{ maxHeight: '300px', overflowY: 'auto' }}>
             <table>
-              <thead><tr><th>Descripción</th><th>Und</th><th style={{ textAlign:'right' }}>Cant. Requerida</th><th style={{ textAlign:'right' }}>Comprado</th><th></th></tr></thead>
+              <thead><tr><th>Descripción</th><th>Und</th><th style={{ textAlign: 'right' }}>Cant. Requerida</th><th style={{ textAlign: 'right' }}>Comprado</th><th></th></tr></thead>
               <tbody>
                 {(!selectedPartida.presupuesto_materiales || selectedPartida.presupuesto_materiales.length === 0) ? (
-                  <tr><td colSpan="5" style={{ textAlign:'center',padding:24,color:'var(--text3)' }}>No hay materiales específicos en esta partida.</td></tr>
+                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay materiales específicos en esta partida.</td></tr>
                 ) : selectedPartida.presupuesto_materiales.map(m => {
-                  const compradoMat = data.compras_cotejo.filter(c => c.presupuesto_item_id === selectedPartida.id && (c.descripcion || '').toLowerCase() === (m.descripcion || '').toLowerCase()).reduce((s,c)=>s+(c.cantidad||0), 0);
+                  const compradoMat = data.compras_cotejo.filter(c => c.presupuesto_item_id === selectedPartida.id && (c.descripcion || '').toLowerCase() === (m.descripcion || '').toLowerCase()).reduce((s, c) => s + (c.cantidad || 0), 0);
                   const exc = compradoMat > m.cantidad;
                   return (
                     <tr key={m.id} style={{ background: exc ? 'rgba(239,68,68,0.07)' : undefined }}>
                       <td><strong>{m.descripcion}</strong></td>
                       <td className="ts tx">{m.unidad}</td>
-                      <td className="mono" style={{ textAlign:'right' }}>{m.cantidad}</td>
-                      <td className="mono" style={{ textAlign:'right', color: exc ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{compradoMat} {exc && '⚠️'}</td>
+                      <td className="mono" style={{ textAlign: 'right' }}>{m.cantidad}</td>
+                      <td className="mono" style={{ textAlign: 'right', color: exc ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{compradoMat} {exc && '⚠️'}</td>
                       <td><button className="btn btn-d btn-sm" onClick={() => deleteMaterialRequerido(m.id)}>✕</button></td>
                     </tr>
                   );
@@ -1367,23 +1371,23 @@ export default function ObraDetail() {
           <form onSubmit={handleUpdatePartida}>
             <div className="form-group">
               <label>Código</label>
-              <input value={editPartidaForm.codigo} onChange={e=>setEditPartidaForm({...editPartidaForm,codigo:e.target.value})} />
+              <input value={editPartidaForm.codigo} onChange={e => setEditPartidaForm({ ...editPartidaForm, codigo: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Descripción *</label>
-              <input required value={editPartidaForm.descripcion} onChange={e=>setEditPartidaForm({...editPartidaForm,descripcion:e.target.value})} />
+              <input required value={editPartidaForm.descripcion} onChange={e => setEditPartidaForm({ ...editPartidaForm, descripcion: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Unidad</label>
-              <input value={editPartidaForm.unidad} onChange={e=>setEditPartidaForm({...editPartidaForm,unidad:e.target.value})} />
+              <input value={editPartidaForm.unidad} onChange={e => setEditPartidaForm({ ...editPartidaForm, unidad: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Cantidad</label>
-              <input type="number" step="0.01" required value={editPartidaForm.cantidad === 0 ? '' : editPartidaForm.cantidad} onChange={e=>setEditPartidaForm({...editPartidaForm,cantidad:e.target.value})} />
+              <input type="number" step="0.01" required value={editPartidaForm.cantidad === 0 ? '' : editPartidaForm.cantidad} onChange={e => setEditPartidaForm({ ...editPartidaForm, cantidad: e.target.value })} />
             </div>
             <div className="form-group">
               <label>P. Unitario</label>
-              <input type="number" step="0.01" required value={editPartidaForm.precio_unitario === 0 ? '' : editPartidaForm.precio_unitario} onChange={e=>setEditPartidaForm({...editPartidaForm,precio_unitario:e.target.value})} />
+              <input type="number" step="0.01" required value={editPartidaForm.precio_unitario === 0 ? '' : editPartidaForm.precio_unitario} onChange={e => setEditPartidaForm({ ...editPartidaForm, precio_unitario: e.target.value })} />
             </div>
             <div className="modal-actions">
               <button type="button" className="btn btn-s" onClick={() => setEditPartidaForm(null)}>Cancelar</button>
@@ -1395,8 +1399,8 @@ export default function ObraDetail() {
       {/* ── TAB 4: SOLICITUDES DE MATERIAL ── */}
       {tab === 4 && (
         <div className="tab-panel active">
-          <div className="card" style={{ marginBottom:14 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div className="card-title">📝 Solicitudes de Terreno</div>
                 <p className="ts tx">Jefe de Obra carga foto de lista manual para gestión</p>
@@ -1405,38 +1409,38 @@ export default function ObraDetail() {
             </div>
           </div>
 
-          <div className="sol-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
+          <div className="sol-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
             {(!data.solicitudes || data.solicitudes.length === 0) ? (
-              <div className="card" style={{ gridColumn:'1/-1', textAlign:'center', padding:40, color:'var(--text3)' }}>No hay solicitudes pendientes.</div>
+              <div className="card" style={{ gridColumn: '1/-1', textAlign: 'center', padding: 40, color: 'var(--text3)' }}>No hay solicitudes pendientes.</div>
             ) : data.solicitudes.map(s => {
               const hrs = getHorasTranscurridas(s.created_at);
               const colorReloj = hrs >= 4 ? 'var(--red)' : hrs >= 2 ? 'var(--orange)' : 'var(--green)';
-              
+
               return (
-                <div className="card" key={s.id} style={{ padding:0, overflow:'hidden', border: hrs >= 4 ? '2px solid var(--red)' : '1px solid var(--border)' }}>
-                  <div style={{ position:'relative', height:180, background:'var(--bg3)' }}>
-                    <img src={s.foto_pedido_url} alt="Pedido" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    <div style={{ position:'absolute', top:8, right:8 }}>
+                <div className="card" key={s.id} style={{ padding: 0, overflow: 'hidden', border: hrs >= 4 ? '2px solid var(--red)' : '1px solid var(--border)' }}>
+                  <div style={{ position: 'relative', height: 180, background: 'var(--bg3)' }}>
+                    <img src={s.foto_pedido_url} alt="Pedido" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', top: 8, right: 8 }}>
                       <Badge estado={s.estado} />
                     </div>
                     {s.urgencia === 'Urgente' && (
-                      <div style={{ position:'absolute', top:8, left:8, background:'var(--red)', color:'white', fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:800 }}>URGENTE</div>
+                      <div style={{ position: 'absolute', top: 8, left: 8, background: 'var(--red)', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 800 }}>URGENTE</div>
                     )}
                   </div>
-                  <div style={{ padding:14 }}>
-                    <div style={{ fontWeight:700, marginBottom:4 }}>{s.titulo}</div>
-                    <div className="ts tx" style={{ marginBottom:10 }}>Pedido por: Jefe de Obra · {fmtDate(s.created_at.split('T')[0])}</div>
-                    
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--bg2)', padding:'8px 12px', borderRadius:8 }}>
-                      <div style={{ fontSize:11, color:'var(--text2)' }}>Tiempo transcurrido:</div>
-                      <div style={{ fontWeight:800, color: colorReloj, display:'flex', alignItems:'center', gap:4 }}>
-                        <span style={{ fontSize:16 }}>⏱️</span> {hrs}h {hrs >= 4 && '(FUERA DE PLAZO)'}
+                  <div style={{ padding: 14 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{s.titulo}</div>
+                    <div className="ts tx" style={{ marginBottom: 10 }}>Pedido por: Jefe de Obra · {fmtDate(s.created_at.split('T')[0])}</div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg2)', padding: '8px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text2)' }}>Tiempo transcurrido:</div>
+                      <div style={{ fontWeight: 800, color: colorReloj, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 16 }}>⏱️</span> {hrs}h {hrs >= 4 && '(FUERA DE PLAZO)'}
                       </div>
                     </div>
 
-                    <div style={{ marginTop:14, display:'flex', gap:8 }}>
-                      <button className="btn btn-s btn-sm" style={{ flex:1 }} onClick={() => window.open(s.foto_pedido_url, '_blank')}>Ver Foto</button>
-                      <button className="btn btn-a btn-sm" style={{ flex:1 }} onClick={() => navigate('/logistica')}>Gestionar</button>
+                    <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                      <button className="btn btn-s btn-sm" style={{ flex: 1 }} onClick={() => window.open(s.foto_pedido_url, '_blank')}>Ver Foto</button>
+                      <button className="btn btn-a btn-sm" style={{ flex: 1 }} onClick={() => navigate('/logistica')}>Gestionar</button>
                     </div>
                   </div>
                 </div>
@@ -1451,34 +1455,34 @@ export default function ObraDetail() {
         <Modal title="📷 Nueva Solicitud de Material" onClose={() => setShowSolicitudModal(false)}>
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
             <p>Saca una foto a la lista de materiales escrita a mano para enviarla a gestión.</p>
-            
+
             <div className="form-group" style={{ marginTop: 20 }}>
               <label>Título - Glosa Corta</label>
-              <input 
-                type="text" 
-                placeholder="Ej: Materiales para fundaciones" 
+              <input
+                type="text"
+                placeholder="Ej: Materiales para fundaciones"
                 value={newSolicitud.titulo}
-                onChange={e => setNewSolicitud({...newSolicitud, titulo: e.target.value})}
+                onChange={e => setNewSolicitud({ ...newSolicitud, titulo: e.target.value })}
               />
             </div>
 
             <div className="form-group">
               <label>Urgencia</label>
-              <select value={newSolicitud.urgencia} onChange={e => setNewSolicitud({...newSolicitud, urgencia: e.target.value})}>
+              <select value={newSolicitud.urgencia} onChange={e => setNewSolicitud({ ...newSolicitud, urgencia: e.target.value })}>
                 <option value="Normal">Normal (48 horas)</option>
                 <option value="Urgente">Urgente (24 horas)</option>
               </select>
             </div>
 
             <div style={{ marginTop: 20 }}>
-              <label className="btn btn-a" style={{ display:'inline-block', cursor:'pointer', padding:'14px 24px' }}>
+              <label className="btn btn-a" style={{ display: 'inline-block', cursor: 'pointer', padding: '14px 24px' }}>
                 {uploading ? 'Subiendo...' : '📷 SACAR FOTO - SUBIR ARCHIVO'}
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment" 
-                  hidden 
-                  onChange={handleUploadPedido} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={handleUploadPedido}
                   disabled={uploading}
                 />
               </label>
