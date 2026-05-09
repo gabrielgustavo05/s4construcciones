@@ -286,20 +286,20 @@ export default function Dashboard() {
                   const pending = getPendingSpecialties(l);
                   return (
                     <tr key={l.id}>
-                      <td><div className="semaforo" style={{ background: getHealthColor(health) }} /></td>
-                      <td>
+                      <td className="lic-status-cell"><div className="semaforo" style={{ background: getHealthColor(health) }} /></td>
+                      <td data-label="Licitacion">
                         <div className="lic-name">{l.nombre_licitacion}</div>
                         <div className="ts tx">{l.cliente || 'Sin mandante'} · {l.observaciones || 'Sin observaciones'}</div>
                       </td>
-                      <td>
+                      <td data-label="Entrega">
                         <div className="mono">{l.fecha_entrega || '-'}</div>
                         <div className={`ts ${days !== null && days < 3 && pending.length ? 'tr2' : 'tx'}`}>
                           {getHealthLabel(l)}
                         </div>
                       </td>
-                      <td><Badge estado={l.estado} /></td>
-                      <td>{l.responsable || '-'}</td>
-                      <td>
+                      <td data-label="Estado"><Badge estado={l.estado} /></td>
+                      <td data-label="Responsable">{l.responsable || '-'}</td>
+                      <td data-label="Especialidades">
                         <div className="specialty-stack compact">
                           {ESPECIALIDADES.map(({ key, label }) => {
                             const estado = getSpecialtyState(l, key);
@@ -312,7 +312,7 @@ export default function Dashboard() {
                           })}
                         </div>
                       </td>
-                      <td><button className="btn btn-s btn-sm" onClick={() => navigate('/licitaciones')}>Ver</button></td>
+                      <td className="lic-actions-cell"><button className="btn btn-s btn-sm" onClick={() => navigate('/licitaciones')}>Ver</button></td>
                     </tr>
                   );
                 })}

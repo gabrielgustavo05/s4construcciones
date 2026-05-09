@@ -354,8 +354,8 @@ export default function Licitaciones() {
                   const pending = getPendingSpecialties(l);
                   return (
                     <tr key={l.id}>
-                      <td><div className="semaforo" style={{ background: getHealthColor(health) }} /></td>
-                      <td>
+                      <td className="lic-status-cell"><div className="semaforo" style={{ background: getHealthColor(health) }} /></td>
+                      <td data-label="Licitacion">
                         <div className="lic-name">{l.nombre_licitacion}</div>
                         <div className="ts tx">{l.cliente || 'Sin mandante'} · {l.direccion || 'Sin ubicacion'}</div>
                         {health === 'danger' && (
@@ -365,15 +365,15 @@ export default function Licitaciones() {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Entrega">
                         <div className="mono">{fmtDate(l.fecha_entrega)}</div>
                         <div className={`ts ${days !== null && days < 3 && pending.length ? 'tr2' : 'tx'}`}>
                           {days === null ? '-' : days < 0 ? `Vencio hace ${Math.abs(days)} d` : `${days} d restantes`}
                         </div>
                       </td>
-                      <td><Badge estado={l.estado} /></td>
-                      <td>{l.responsable || '-'}</td>
-                      <td>
+                      <td data-label="Estado"><Badge estado={l.estado} /></td>
+                      <td data-label="Responsable">{l.responsable || '-'}</td>
+                      <td data-label="Especialidades">
                         <div className="specialty-stack">
                           {ESPECIALIDADES.map(({ key, label }) => {
                             const estado = getSpecialtyState(l, key);
@@ -388,8 +388,8 @@ export default function Licitaciones() {
                           })}
                         </div>
                       </td>
-                      <td className="lic-notes">{l.observaciones || '-'}</td>
-                      <td>
+                      <td data-label="Observaciones" className="lic-notes">{l.observaciones || '-'}</td>
+                      <td className="lic-actions-cell">
                         <button className="btn btn-s btn-sm" onClick={() => openEdit(l)}>
                           <Pencil size={13} strokeWidth={1.9} />
                           Editar
