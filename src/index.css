@@ -902,6 +902,10 @@ select option {
   display: block;
 }
 
+.mobile-tab-switcher {
+  display: none;
+}
+
 /* â”€â”€ GANTT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .gantt-row {
   display: flex;
@@ -1237,6 +1241,44 @@ select option {
 
   .tabs {
     padding: 0 14px;
+  }
+
+  .detail-overlay .tabs {
+    display: none;
+  }
+
+  .mobile-tab-switcher {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    display: block;
+    padding: 10px 14px;
+    background: rgba(20, 23, 28, 0.96);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .mobile-tab-switcher label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .mobile-tab-switcher select {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--r2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
   }
 
   .tab-panel {
@@ -2480,6 +2522,50 @@ textarea:disabled {
 
   .kpi-card {
     min-height: 112px;
+  }
+}
+
+@media (max-width: 768px) {
+  .detail-overlay .detail-header {
+    position: static;
+  }
+
+  .detail-overlay .tabs {
+    display: none;
+  }
+
+  .detail-overlay .mobile-tab-switcher {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    display: block;
+    padding: 10px 14px;
+    background: rgba(20, 23, 28, 0.96);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .detail-overlay .mobile-tab-switcher label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .detail-overlay .mobile-tab-switcher select {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--r2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
   }
 }
 

@@ -701,6 +701,15 @@ export default function ObraDetail() {
       </div>
 
       {/* ── TAB 0: RESUMEN ── */}
+      <div className="mobile-tab-switcher">
+        <label htmlFor="obra-mobile-tab">Seccion</label>
+        <select id="obra-mobile-tab" value={tab} onChange={(e) => setTab(Number(e.target.value))}>
+          {TABS.map((t, i) => (
+            <option key={t} value={i}>{t}</option>
+          ))}
+        </select>
+      </div>
+
       {tab === 0 && (
         <div className="tab-panel active">
           <div className="stats-grid">
