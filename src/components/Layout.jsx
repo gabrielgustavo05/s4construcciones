@@ -15,6 +15,7 @@ const PAGE_TITLES = {
   '/personal': 'Personal',
   '/logistica': 'Logistica',
   '/electrico': 'Dpto. Electrico',
+  '/licitaciones': 'Licitaciones',
 };
 
 export default function Layout() {

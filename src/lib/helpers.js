@@ -81,6 +81,20 @@ export const badgeClass = (estado) => {
     Licitación: 'b-p', Planificación: 'b-p', 'En Progreso': 'b-b',
     Menor: 'b-g', Mayor: 'b-y', Crítica: 'b-r',
   };
+  Object.assign(map, {
+    'En estudio': 'b-p',
+    'En cotizacion': 'b-y',
+    'Lista para enviar': 'b-g',
+    Enviada: 'b-b',
+    Adjudicada: 'b-g',
+    Perdida: 'b-r',
+    Cerrada: 'b-gray',
+    'Pendiente de enviar': 'b-r',
+    'Enviada a cotizar': 'b-y',
+    'Cotizacion recibida': 'b-g',
+    'No aplica': 'b-gray',
+  });
+
   return map[estado] || 'b-gray';
 };
 

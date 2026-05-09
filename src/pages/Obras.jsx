@@ -183,7 +183,10 @@ export default function Obras() {
           <h2>Listado de Obras</h2>
           <p>Control de presupuestos y avance por proyecto</p>
         </div>
-        <button className="btn btn-a" onClick={() => setShowModal(true)}>+ Nueva obra de construcción</button>
+        <div className="fg2">
+          <button className="btn btn-s" onClick={() => navigate('/licitaciones?new=1')}>Ingreso de Licitacion</button>
+          <button className="btn btn-a" onClick={() => setShowModal(true)}>+ Nueva obra de construcción</button>
+        </div>
       </div>
 
       <div className="pb">

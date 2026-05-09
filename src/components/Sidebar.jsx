@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   ClipboardList,
+  ClipboardPlus,
   DollarSign,
   FileText,
   HardHat,
@@ -21,6 +22,7 @@ const NAV = [
     items: [
       { to: '/dashboard', icon: BarChart3, label: 'Dashboard' },
       { to: '/obras', icon: BriefcaseBusiness, label: 'Obras' },
+      { to: '/licitaciones', icon: ClipboardPlus, label: 'Licitaciones' },
       { to: '/electrico', icon: Zap, label: 'Dpto. Electrico' },
       { to: '/logistica', icon: Truck, label: 'Logistica' },
     ],

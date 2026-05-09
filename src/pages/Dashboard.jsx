@@ -5,6 +5,7 @@ import {
   BarChart3,
   BriefcaseBusiness,
   ClipboardCheck,
+  ClipboardPlus,
   FileClock,
   Gauge,
   Handshake,
@@ -13,6 +14,17 @@ import {
 import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabase';
 import { clp, calcPresupuesto, calcCostoReal, semaforoColor, pct } from '../lib/helpers';
+import {
+  ESPECIALIDADES,
+  LICITACION_FINALIZADA,
+  daysUntil,
+  getHealthColor,
+  getHealthLabel,
+  getLicitacionHealth,
+  getPendingSpecialties,
+  getSpecialtyState,
+  specialtyToneClass,
+} from '../lib/licitaciones';
 import Badge from '../components/Badge';
 import KpiCard from '../components/KpiCard';
 import PageHeader from '../components/PageHeader';
@@ -21,6 +33,7 @@ Chart.register(...registerables);
 
 export default function Dashboard() {
   const [obras, setObras] = useState([]);
+  const [licitaciones, setLicitaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
@@ -78,6 +91,19 @@ export default function Dashboard() {
       });
 
       setObras(obrasData);
+
+      const { data: licData, error: licError } = await supabase
+        .from('licitaciones')
+        .select('*')
+        .order('fecha_entrega', { ascending: true, nullsFirst: false })
+        .limit(12);
+
+      if (licError) {
+        console.warn('Modulo licitaciones pendiente de migracion:', licError.message);
+        setLicitaciones([]);
+      } else {
+        setLicitaciones(licData || []);
+      }
     } catch (err) {
       console.error(err);
       setErrorMsg('No se pudo actualizar el dashboard: ' + err.message);
@@ -99,6 +125,7 @@ export default function Dashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subcontratos' }, fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_pago' }, fetchObras)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes_material' }, fetchObras)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'licitaciones' }, fetchObras)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -184,6 +211,10 @@ export default function Dashboard() {
   const totalSubs = obras.reduce((s, o) => s + (o.subcontratos || []).reduce((a, b) => a + b.monto_contrato, 0), 0);
   const cotPend = obras.reduce((s, o) => s + (o.cotizaciones || []).filter((c) => c.estado === 'Pendiente').length, 0);
   const obrasRiesgo = obras.filter((o) => o.totalPres > 0 && o.totalCompras / o.totalPres >= 0.85).length;
+  const licitacionesActivas = licitaciones
+    .filter((l) => !LICITACION_FINALIZADA.includes(l.estado))
+    .sort((a, b) => (a.fecha_entrega || '9999-12-31').localeCompare(b.fecha_entrega || '9999-12-31'));
+  const licitacionesRiesgo = licitacionesActivas.filter((l) => getLicitacionHealth(l) === 'danger').length;
   const fechaDashboard = new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
@@ -211,6 +242,7 @@ export default function Dashboard() {
           <KpiCard label="Avance promedio" value={`${avPromedio}%`} sub="Obras activas" icon={ClipboardCheck} tone="neutral" />
           <KpiCard label="Subcontratos" value={clp(totalSubs)} sub={`${obras.reduce((s, o) => s + (o.subcontratos || []).length, 0)} contratos`} icon={Handshake} tone="accent" />
           <KpiCard label="Obras en riesgo" value={obrasRiesgo} sub="Sobre 85% de consumo" icon={AlertTriangle} tone={obrasRiesgo > 0 ? 'danger' : 'success'} />
+          <KpiCard label="Licitaciones activas" value={licitacionesActivas.length} sub={`${licitacionesRiesgo} con alerta`} icon={ClipboardPlus} tone={licitacionesRiesgo > 0 ? 'danger' : 'info'} />
         </div>
 
         <div className="g2 dashboard-panels">
@@ -221,6 +253,71 @@ export default function Dashboard() {
           <div className="card chart-card">
             <div className="card-title">Avance por obra (%)</div>
             <div className="chart-wrap"><canvas ref={chartAvRef} /></div>
+          </div>
+        </div>
+
+        <div className="card data-card dashboard-licitaciones" style={{ padding: 0 }}>
+          <div className="fb" style={{ padding: '14px 16px 0' }}>
+            <div>
+              <div className="card-title" style={{ marginBottom: 2 }}>Licitaciones en postulacion</div>
+              <div className="ts tx">Ordenadas por fecha de entrega y riesgo de cotizaciones externas</div>
+            </div>
+            <button className="btn btn-s btn-sm" onClick={() => navigate('/licitaciones?new=1')}>Ingreso de Licitacion</button>
+          </div>
+          <div className="tw">
+            <table className="licitaciones-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Licitacion</th>
+                  <th>Entrega</th>
+                  <th>Estado</th>
+                  <th>Responsable</th>
+                  <th>Especialidades</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {licitacionesActivas.length === 0 ? (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay licitaciones activas registradas</td></tr>
+                ) : licitacionesActivas.slice(0, 6).map((l) => {
+                  const health = getLicitacionHealth(l);
+                  const days = daysUntil(l.fecha_entrega);
+                  const pending = getPendingSpecialties(l);
+                  return (
+                    <tr key={l.id}>
+                      <td><div className="semaforo" style={{ background: getHealthColor(health) }} /></td>
+                      <td>
+                        <div className="lic-name">{l.nombre_licitacion}</div>
+                        <div className="ts tx">{l.cliente || 'Sin mandante'} · {l.observaciones || 'Sin observaciones'}</div>
+                      </td>
+                      <td>
+                        <div className="mono">{l.fecha_entrega || '-'}</div>
+                        <div className={`ts ${days !== null && days < 3 && pending.length ? 'tr2' : 'tx'}`}>
+                          {getHealthLabel(l)}
+                        </div>
+                      </td>
+                      <td><Badge estado={l.estado} /></td>
+                      <td>{l.responsable || '-'}</td>
+                      <td>
+                        <div className="specialty-stack compact">
+                          {ESPECIALIDADES.map(({ key, label }) => {
+                            const estado = getSpecialtyState(l, key);
+                            return (
+                              <span className={`specialty-pill readonly ${specialtyToneClass(estado)}`} key={key}>
+                                <span>{label}</span>
+                                <em>{estado}</em>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td><button className="btn btn-s btn-sm" onClick={() => navigate('/licitaciones')}>Ver</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
