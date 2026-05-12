@@ -3,8 +3,10 @@ import { supabase } from '../lib/supabase';
 import { parseNum, today } from '../lib/helpers';
 import Modal from '../components/Modal';
 import Badge from '../components/Badge';
+import { useAuth } from '../context/AuthContext';
 
 export default function Logistica() {
+  const { user } = useAuth();
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSol, setSelectedSol] = useState(null);
@@ -84,6 +86,12 @@ export default function Logistica() {
           proveedor,
           n_documento: `SOL-${String(selectedSol.id).slice(0, 8)}`,
           fecha: today(),
+          origen: 'oficina_tecnica',
+          tipo_item: 'material',
+          estado_compra: 'comprada',
+          solicitado_por: selectedSol.solicitado_por || null,
+          aprobado_por: user?.id || null,
+          observaciones: `Compra gestionada desde solicitud de material: ${selectedSol.titulo}`,
         }])
         .select('id')
         .single();

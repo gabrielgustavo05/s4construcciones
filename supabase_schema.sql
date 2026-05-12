@@ -219,6 +219,13 @@ CREATE TABLE IF NOT EXISTS asistencia (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS dias_trabajados NUMERIC DEFAULT 1;
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS horas_extra NUMERIC DEFAULT 0;
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS bono_trato NUMERIC DEFAULT 0;
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS descuentos NUMERIC DEFAULT 0;
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS sueldo_base_mensual NUMERIC DEFAULT 0;
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS total_pago NUMERIC DEFAULT 0;
+
 -- Habilitar RLS
 ALTER TABLE trabajadores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asistencia ENABLE ROW LEVEL SECURITY;
@@ -242,7 +249,23 @@ CREATE POLICY "asis_select" ON asistencia FOR SELECT USING (EXISTS (SELECT 1 FRO
 CREATE POLICY "asis_insert" ON asistencia FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
 CREATE POLICY "asis_update" ON asistencia FOR UPDATE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
 CREATE POLICY "asis_delete" ON asistencia FOR DELETE USING (EXISTS (SELECT 1 FROM obras WHERE obras.id = asistencia.obra_id AND obras.user_id = auth.uid()));
-ALTER TABLE compras ADD COLUMN IF NOT EXISTS n_documento TEXT;  
-  
--- Agregado de n_documento a compras  
-ALTER TABLE compras ADD COLUMN IF NOT EXISTS n_documento TEXT; 
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS n_documento TEXT;
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS fecha DATE DEFAULT CURRENT_DATE;
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS origen TEXT DEFAULT 'obra';
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS tipo_item TEXT DEFAULT 'material';
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS estado_compra TEXT DEFAULT 'comprada';
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS solicitado_por UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS aprobado_por UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE compras ADD COLUMN IF NOT EXISTS observaciones TEXT;
+
+UPDATE compras
+SET
+  fecha = COALESCE(fecha, created_at::date, CURRENT_DATE),
+  origen = COALESCE(origen, 'obra'),
+  tipo_item = COALESCE(tipo_item, 'material'),
+  estado_compra = COALESCE(estado_compra, 'comprada');
+
+CREATE INDEX IF NOT EXISTS idx_compras_origen ON compras(origen);
+CREATE INDEX IF NOT EXISTS idx_compras_tipo_item ON compras(tipo_item);
+CREATE INDEX IF NOT EXISTS idx_compras_estado_compra ON compras(estado_compra);
+CREATE INDEX IF NOT EXISTS idx_compras_fecha ON compras(fecha);

@@ -5,6 +5,7 @@ import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, calc
 import { validateCompraForm } from '../lib/validators';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 
 const TABS = ['Resumen', 'Presupuesto', 'RRHH', 'Compras', 'Solicitudes', 'Cotizaciones', 'Subcontratos', 'Hitos', 'Estados de Pago'];
 const PRESUPUESTO_COLUMNS = [
@@ -49,6 +50,7 @@ const getDefaultPresupuestoColWidths = () =>
   Object.fromEntries(PRESUPUESTO_COLUMNS.map(col => [col.key, col.width]));
 
 export default function ObraDetail() {
+  const { user } = useAuth();
   const { id } = useParams(); const navigate = useNavigate();
   const [obra, setObra] = useState(null);
   const [tab, setTab] = useState(0);
@@ -402,7 +404,7 @@ export default function ObraDetail() {
   };
 
   // ── Agregar compra ──
-  const [newCompra, setNewCompra] = useState({ descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '', proveedor: '', n_documento: '', fecha: today(), presupuesto_item_id: '' });
+  const [newCompra, setNewCompra] = useState({ descripcion: '', unidad: 'UN', cantidad: '', precio_unitario: '', proveedor: '', n_documento: '', fecha: today(), origen: 'obra', tipo_item: 'material', estado_compra: 'comprada', presupuesto_item_id: '' });
   const addCompra = async (e) => {
     e.preventDefault();
     const errors = validateCompraForm(newCompra);
@@ -411,7 +413,13 @@ export default function ObraDetail() {
       return;
     }
 
-    const payload = { ...newCompra, obra_id: id, cantidad: parseNum(newCompra.cantidad), precio_unitario: parseNum(newCompra.precio_unitario) };
+    const payload = {
+      ...newCompra,
+      obra_id: id,
+      cantidad: parseNum(newCompra.cantidad),
+      precio_unitario: parseNum(newCompra.precio_unitario),
+      solicitado_por: user?.id || null,
+    };
     if (!payload.presupuesto_item_id) delete payload.presupuesto_item_id;
     const { error } = await supabase.from('compras').insert([payload]);
     if (error) {
@@ -482,6 +490,37 @@ export default function ObraDetail() {
     if (error) return alert('Error al registrar asistencia: ' + error.message);
     setNewAsistencia({ ...newAsistencia, trabajador_id: '', dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
     fetchTab(2); // tab 2 es Asistencia
+  };
+
+  const calcPagoAsistencia = (row) => {
+    const dias = parseNum(row.dias_trabajados);
+    const bono = parseNum(row.bono_trato);
+    const horas = parseNum(row.horas_extra);
+    const desc = parseNum(row.descuentos);
+    const sueldoMensual = parseNum(row.sueldo_base_mensual);
+
+    const valorDia = sueldoMensual / 30;
+    const factorHoraExtra = (1 / 30) * (7 / 42) * 1.5;
+    const pagoHorasExtra = horas * (sueldoMensual * factorHoraExtra);
+
+    return (valorDia * dias) + bono + pagoHorasExtra - desc;
+  };
+
+  const updateAsistenciaField = async (row, field, value) => {
+    const numericFields = ['dias_trabajados', 'horas_extra', 'bono_trato', 'descuentos', 'sueldo_base_mensual'];
+    const next = { ...row, [field]: numericFields.includes(field) ? parseNum(value) : value };
+    const payload = { [field]: next[field] };
+
+    if (numericFields.includes(field)) {
+      payload.total_pago = Math.round(calcPagoAsistencia(next));
+    }
+
+    const { error } = await supabase.from('asistencia').update(payload).eq('id', row.id);
+    if (error) {
+      alert('No se pudo actualizar asistencia: ' + error.message);
+      return;
+    }
+    fetchTab(2);
   };
 
   const handleUploadPedido = async (e) => {
@@ -1023,26 +1062,27 @@ export default function ObraDetail() {
           <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
-                <thead><tr><th>Fecha</th><th>Trabajador</th><th>Cargo</th><th>Días</th><th>H. Ext</th><th>Bonos</th><th>Dsctos</th><th>Total Pago</th><th></th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Trabajador</th><th>Cargo</th><th>Sueldo</th><th>Días</th><th>H. Ext</th><th>Bonos</th><th>Dsctos</th><th>Total Pago</th><th></th></tr></thead>
                 <tbody>
                   {data.asistencia.length === 0 ? (
-                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay registros de asistencia.</td></tr>
+                    <tr><td colSpan="10" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay registros de asistencia.</td></tr>
                   ) : data.asistencia.map(a => (
                     <tr key={a.id}>
-                      <td className="ts">{a.fecha}</td>
+                      <td><input className="table-input" type="date" defaultValue={a.fecha || ''} onBlur={(e) => updateAsistenciaField(a, 'fecha', e.target.value)} /></td>
                       <td><strong>{a.trabajador?.nombre || 'Desconocido'}</strong></td>
                       <td className="ts tx">{a.trabajador?.cargo}</td>
-                      <td className="mono">{a.dias_trabajados}</td>
-                      <td className="mono">{a.horas_extra}</td>
-                      <td className="mono tg">{clp(a.bono_trato)}</td>
-                      <td className="mono" style={{ color: 'var(--red)' }}>{a.descuentos > 0 ? clp(-a.descuentos) : 0}</td>
+                      <td><input className="table-input mono" type="number" defaultValue={a.sueldo_base_mensual || 0} onBlur={(e) => updateAsistenciaField(a, 'sueldo_base_mensual', e.target.value)} /></td>
+                      <td><input className="table-input mono" type="number" step="0.5" min="0" defaultValue={a.dias_trabajados || 0} onBlur={(e) => updateAsistenciaField(a, 'dias_trabajados', e.target.value)} /></td>
+                      <td><input className="table-input mono" type="number" step="0.5" min="0" defaultValue={a.horas_extra || 0} onBlur={(e) => updateAsistenciaField(a, 'horas_extra', e.target.value)} /></td>
+                      <td><input className="table-input mono" type="number" defaultValue={a.bono_trato || 0} onBlur={(e) => updateAsistenciaField(a, 'bono_trato', e.target.value)} /></td>
+                      <td><input className="table-input mono" type="number" defaultValue={a.descuentos || 0} onBlur={(e) => updateAsistenciaField(a, 'descuentos', e.target.value)} /></td>
                       <td className="mono" style={{ fontWeight: 800, color: 'var(--accent)' }}>{clp(a.total_pago)}</td>
                       <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('asistencia', a.id)}>✕</button></td>
                     </tr>
                   ))}
                   {data.asistencia.length > 0 && (
                     <tr style={{ background: 'var(--bg3)', fontWeight: 800 }}>
-                      <td colSpan="7" style={{ textAlign: 'right' }}>Total Mano de Obra:</td>
+                      <td colSpan="8" style={{ textAlign: 'right' }}>Total Mano de Obra:</td>
                       <td className="mono" style={{ color: 'var(--accent)' }}>{clp(calcAsistencia(data.asistencia))}</td>
                       <td></td>
                     </tr>
@@ -1070,6 +1110,13 @@ export default function ObraDetail() {
               <div className="form-group" style={{ margin: 0 }}><label>Cantidad</label><input type="number" step="0.01" required value={newCompra.cantidad} onChange={e => setNewCompra({ ...newCompra, cantidad: e.target.value })} /></div>
               <div className="form-group" style={{ margin: 0 }}><label>P. Unit</label><input type="number" step="0.01" required value={newCompra.precio_unitario} onChange={e => setNewCompra({ ...newCompra, precio_unitario: e.target.value })} /></div>
               <div className="form-group" style={{ margin: 0 }}><label>Proveedor</label><input value={newCompra.proveedor} onChange={e => setNewCompra({ ...newCompra, proveedor: e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Tipo</label>
+                <select value={newCompra.tipo_item} onChange={e => setNewCompra({ ...newCompra, tipo_item: e.target.value })}>
+                  <option value="material">Material</option>
+                  <option value="herramienta">Herramienta</option>
+                </select>
+              </div>
               <div className="form-group" style={{ margin: 0 }}><label>N° Doc</label><input value={newCompra.n_documento} onChange={e => setNewCompra({ ...newCompra, n_documento: e.target.value })} /></div>
               <div className="form-group compra-field-partida" style={{ margin: 0 }}>
                 <label>Partida Asignada</label>
@@ -1093,21 +1140,23 @@ export default function ObraDetail() {
           <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
-                <thead><tr><th>N°</th><th>Descripción</th><th>Und</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>P. Unitario</th><th style={{ textAlign: 'right' }}>Total</th><th>Proveedor</th><th>N° Doc</th><th>Fecha</th><th></th></tr></thead>
+                <thead><tr><th>N°</th><th>Descripción</th><th>Tipo</th><th>Und</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>P. Unitario</th><th style={{ textAlign: 'right' }}>Total</th><th>Proveedor</th><th>Origen</th><th>N° Doc</th><th>Fecha</th><th></th></tr></thead>
                 <tbody>
                   {data.compras.length === 0 ? (
-                    <tr><td colSpan="10" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin compras registradas.</td></tr>
+                    <tr><td colSpan="12" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>Sin compras registradas.</td></tr>
                   ) : data.compras.map((c, i) => {
                     const tot = c.cantidad * c.precio_unitario;
                     return (
                       <tr key={c.id}>
                         <td className="ts tx">{i + 1}</td>
                         <td><strong>{c.descripcion}</strong></td>
+                        <td className="ts tx">{c.tipo_item === 'herramienta' ? 'Herramienta' : 'Material'}</td>
                         <td className="ts tx">{c.unidad}</td>
                         <td className="mono" style={{ textAlign: 'right' }}>{c.cantidad}</td>
                         <td className="mono" style={{ textAlign: 'right' }}>{clp(c.precio_unitario)}</td>
                         <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{clp(tot)}</td>
                         <td className="ts tx">{c.proveedor || '-'}</td>
+                        <td className="ts tx">{c.origen === 'oficina_tecnica' ? 'Oficina tecnica' : 'Obra'}</td>
                         <td className="ts tx">{c.n_documento || '-'}</td>
                         <td className="ts">{c.fecha || '-'}</td>
                         <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('compras', c.id)}>✕</button></td>
