@@ -649,6 +649,9 @@ export default function ObraDetail() {
     fetchTab(8);
   };
 
+  const updateObraLocal = (field, value) => {
+    setObra(prev => ({ ...prev, [field]: value }));
+  };
 
   const updatePct = async (field, value) => {
     const num = Number(value);
@@ -1076,11 +1079,11 @@ export default function ObraDetail() {
                 <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>Costo directo</div>
                 <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                   Gastos Generales
-                  <input type="number" step="0.1" value={obra.gastos_generales_pct} onChange={e => updatePct('gastos_generales_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
+                  <input type="number" step="0.1" value={obra.gastos_generales_pct} onChange={e => updateObraLocal('gastos_generales_pct', e.target.value)} onBlur={e => updatePct('gastos_generales_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                   Utilidades
-                  <input type="number" step="0.1" value={obra.utilidad_pct} onChange={e => updatePct('utilidad_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
+                  <input type="number" step="0.1" value={obra.utilidad_pct} onChange={e => updateObraLocal('utilidad_pct', e.target.value)} onBlur={e => updatePct('utilidad_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>PRESUPUESTO NETO</div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>IVA 19% (referencia)</div>
