@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -11,7 +11,6 @@ import {
   Handshake,
   WalletCards,
 } from 'lucide-react';
-import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabase';
 import { clp, calcPresupuesto, calcCostoReal, semaforoColor, pct } from '../lib/helpers';
 import {
@@ -29,18 +28,12 @@ import Badge from '../components/Badge';
 import KpiCard from '../components/KpiCard';
 import PageHeader from '../components/PageHeader';
 
-Chart.register(...registerables);
-
 export default function Dashboard() {
   const [obras, setObras] = useState([]);
   const [licitaciones, setLicitaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
-  const chartPresRef = useRef(null);
-  const chartAvRef = useRef(null);
-  const chartPresInst = useRef(null);
-  const chartAvInst = useRef(null);
 
   const fetchObras = useCallback(async () => {
     try {
@@ -132,71 +125,6 @@ export default function Dashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchObras]);
 
-  useEffect(() => {
-    if (!obras.length || loading) return;
-
-    const labels = obras.map((o) => (o.nombre.length > 16 ? `${o.nombre.slice(0, 16)}...` : o.nombre));
-    const chartOpts = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: '#a8b1bd', font: { size: 10 }, boxWidth: 10 } },
-      },
-      scales: {
-        x: { ticks: { color: '#737f8c', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.035)' } },
-        y: { ticks: { color: '#737f8c', font: { size: 9 }, callback: (v) => clp(v) }, grid: { color: 'rgba(255,255,255,0.035)' } },
-      },
-    };
-
-    if (chartPresInst.current) chartPresInst.current.destroy();
-    if (chartPresRef.current) {
-      chartPresInst.current = new Chart(chartPresRef.current.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Presupuesto', data: obras.map((o) => o.totalPres), backgroundColor: 'rgba(79,140,201,0.64)', borderColor: '#4f8cc9', borderWidth: 1 },
-            { label: 'Gasto real', data: obras.map((o) => o.totalCompras), backgroundColor: 'rgba(201,138,44,0.68)', borderColor: '#c98a2c', borderWidth: 1 },
-          ],
-        },
-        options: chartOpts,
-      });
-    }
-
-    const avOpts = { ...chartOpts, indexAxis: 'y' };
-    avOpts.scales = {
-      x: { ticks: { color: '#737f8c', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.035)' }, max: 100 },
-      y: { ticks: { color: '#737f8c', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.035)' } },
-    };
-    avOpts.plugins = { legend: { display: false } };
-
-    if (chartAvInst.current) chartAvInst.current.destroy();
-    if (chartAvRef.current) {
-      chartAvInst.current = new Chart(chartAvRef.current.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Avance %',
-            data: obras.map((o) => o.avance || 0),
-            backgroundColor: obras.map((o) =>
-              (o.avance || 0) >= 80 ? 'rgba(40,168,117,0.72)' :
-              (o.avance || 0) >= 40 ? 'rgba(201,138,44,0.72)' :
-              'rgba(79,140,201,0.72)'
-            ),
-            borderWidth: 0,
-          }],
-        },
-        options: avOpts,
-      });
-    }
-
-    return () => {
-      if (chartPresInst.current) chartPresInst.current.destroy();
-      if (chartAvInst.current) chartAvInst.current.destroy();
-    };
-  }, [obras, loading]);
-
   if (loading) return (
     <div className="loading-center">
       <div className="spinner" />
@@ -248,17 +176,6 @@ export default function Dashboard() {
           <KpiCard label="Subcontratos" value={clp(totalSubs)} sub={`${obras.reduce((s, o) => s + (o.subcontratos || []).length, 0)} contratos`} icon={Handshake} tone="accent" />
           <KpiCard label="Obras en riesgo" value={obrasRiesgo} sub="Sobre 85% de consumo" icon={AlertTriangle} tone={obrasRiesgo > 0 ? 'danger' : 'success'} />
           <KpiCard label="Licitaciones activas" value={licitacionesActivas.length} sub={`${licitacionesRiesgo} con alerta`} icon={ClipboardPlus} tone={licitacionesRiesgo > 0 ? 'danger' : 'info'} />
-        </div>
-
-        <div className="g2 dashboard-panels">
-          <div className="card chart-card">
-            <div className="card-title">Presupuesto vs gasto real</div>
-            <div className="chart-wrap"><canvas ref={chartPresRef} /></div>
-          </div>
-          <div className="card chart-card">
-            <div className="card-title">Avance por obra (%)</div>
-            <div className="chart-wrap"><canvas ref={chartAvRef} /></div>
-          </div>
         </div>
 
         <div className="card data-card dashboard-licitaciones" style={{ padding: 0 }}>
