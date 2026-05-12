@@ -29,6 +29,7 @@ const buildForm = (row = null) => {
     ...row,
     fecha_recepcion: row.fecha_recepcion || '',
     fecha_entrega: row.fecha_entrega || '',
+    hora_entrega: row.hora_entrega || '',
     clima_fecha_envio: row.clima_fecha_envio || '',
     clima_fecha_recepcion: row.clima_fecha_recepcion || '',
     incendio_fecha_envio: row.incendio_fecha_envio || '',
@@ -56,6 +57,7 @@ export default function Licitaciones() {
       .from('licitaciones')
       .select('*')
       .order('fecha_entrega', { ascending: true, nullsFirst: false })
+      .order('hora_entrega', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -94,7 +96,11 @@ export default function Licitaciones() {
         if (filtroEstado === 'Todas') return true;
         return l.estado === filtroEstado;
       })
-      .sort((a, b) => (a.fecha_entrega || '9999-12-31').localeCompare(b.fecha_entrega || '9999-12-31'));
+      .sort((a, b) => {
+        const aDeadline = `${a.fecha_entrega || '9999-12-31'}T${a.hora_entrega || '23:59'}`;
+        const bDeadline = `${b.fecha_entrega || '9999-12-31'}T${b.hora_entrega || '23:59'}`;
+        return aDeadline.localeCompare(bDeadline);
+      });
   }, [licitaciones, filtroEstado]);
 
   const stats = useMemo(() => {
@@ -133,6 +139,7 @@ export default function Licitaciones() {
     const errors = [];
     if (!(form.nombre_licitacion || '').trim()) errors.push('El nombre de la licitacion es obligatorio.');
     if (!form.fecha_entrega) errors.push('La fecha limite de entrega es obligatoria.');
+    if (!form.hora_entrega) errors.push('La hora limite de entrega es obligatoria.');
     if (errors.length) {
       alert(errors.join('\n'));
       return;
@@ -251,6 +258,10 @@ export default function Licitaciones() {
                   <label>FECHA LIMITE ENTREGA *</label>
                   <input type="date" value={form.fecha_entrega} onChange={(e) => setField('fecha_entrega', e.target.value)} />
                 </div>
+                <div className="form-group">
+                  <label>HORA LIMITE ENTREGA *</label>
+                  <input type="time" value={form.hora_entrega} onChange={(e) => setField('hora_entrega', e.target.value)} />
+                </div>
               </div>
 
               <div className="form-grid">
@@ -367,6 +378,7 @@ export default function Licitaciones() {
                       </td>
                       <td data-label="Entrega">
                         <div className="mono">{fmtDate(l.fecha_entrega)}</div>
+                        <div className="ts tx">{l.hora_entrega ? `${String(l.hora_entrega).slice(0, 5)} hrs` : 'Sin hora'}</div>
                         <div className={`ts ${days !== null && days < 3 && pending.length ? 'tr2' : 'tx'}`}>
                           {days === null ? '-' : days < 0 ? `Vencio hace ${Math.abs(days)} d` : `${days} d restantes`}
                         </div>

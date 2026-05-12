@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS licitaciones (
     direccion TEXT,
     fecha_recepcion DATE,
     fecha_entrega DATE NOT NULL,
+    hora_entrega TIME,
     responsable TEXT,
     estado TEXT NOT NULL DEFAULT 'En estudio',
     observaciones TEXT,
@@ -33,6 +34,7 @@ ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS cliente TEXT;
 ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS direccion TEXT;
 ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS fecha_recepcion DATE;
 ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS fecha_entrega DATE;
+ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS hora_entrega TIME;
 ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS responsable TEXT;
 ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'En estudio';
 ALTER TABLE licitaciones ADD COLUMN IF NOT EXISTS observaciones TEXT;
@@ -88,6 +90,7 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_licitaciones_user_estado ON licitaciones(user_id, estado);
 CREATE INDEX IF NOT EXISTS idx_licitaciones_fecha_entrega ON licitaciones(fecha_entrega);
+CREATE INDEX IF NOT EXISTS idx_licitaciones_entrega_hora ON licitaciones(fecha_entrega, hora_entrega);
 
 CREATE OR REPLACE FUNCTION set_licitaciones_updated_at()
 RETURNS TRIGGER AS $$

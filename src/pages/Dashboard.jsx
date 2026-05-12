@@ -96,6 +96,7 @@ export default function Dashboard() {
         .from('licitaciones')
         .select('*')
         .order('fecha_entrega', { ascending: true, nullsFirst: false })
+        .order('hora_entrega', { ascending: true, nullsFirst: false })
         .limit(12);
 
       if (licError) {
@@ -213,7 +214,11 @@ export default function Dashboard() {
   const obrasRiesgo = obras.filter((o) => o.totalPres > 0 && o.totalCompras / o.totalPres >= 0.85).length;
   const licitacionesActivas = licitaciones
     .filter((l) => !LICITACION_FINALIZADA.includes(l.estado))
-    .sort((a, b) => (a.fecha_entrega || '9999-12-31').localeCompare(b.fecha_entrega || '9999-12-31'));
+    .sort((a, b) => {
+      const aDeadline = `${a.fecha_entrega || '9999-12-31'}T${a.hora_entrega || '23:59'}`;
+      const bDeadline = `${b.fecha_entrega || '9999-12-31'}T${b.hora_entrega || '23:59'}`;
+      return aDeadline.localeCompare(bDeadline);
+    });
   const licitacionesRiesgo = licitacionesActivas.filter((l) => getLicitacionHealth(l) === 'danger').length;
   const fechaDashboard = new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -293,6 +298,7 @@ export default function Dashboard() {
                       </td>
                       <td data-label="Entrega">
                         <div className="mono">{l.fecha_entrega || '-'}</div>
+                        <div className="ts tx">{l.hora_entrega ? `${String(l.hora_entrega).slice(0, 5)} hrs` : 'Sin hora'}</div>
                         <div className={`ts ${days !== null && days < 3 && pending.length ? 'tr2' : 'tx'}`}>
                           {getHealthLabel(l)}
                         </div>

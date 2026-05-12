@@ -30,6 +30,7 @@ export const emptyLicitacion = {
   direccion: '',
   fecha_recepcion: '',
   fecha_entrega: '',
+  hora_entrega: '',
   responsable: '',
   estado: 'En estudio',
   observaciones: '',
@@ -122,5 +123,6 @@ export const normalizeLicitacionPayload = (form) => {
 
   payload.fecha_recepcion = payload.fecha_recepcion || null;
   payload.fecha_entrega = payload.fecha_entrega || null;
+  payload.hora_entrega = payload.hora_entrega || null;
   return payload;
 };
