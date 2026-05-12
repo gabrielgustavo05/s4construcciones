@@ -63,6 +63,7 @@ export default function ObraDetail() {
 
   const [trabajadores, setTrabajadores] = useState([]);
   const [trabajadorSearch, setTrabajadorSearch] = useState('');
+  const [showTrabajadorSuggestions, setShowTrabajadorSuggestions] = useState(false);
   const [newAsistencia, setNewAsistencia] = useState({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
 
   const [materialesGlobales, setMaterialesGlobales] = useState([]);
@@ -497,20 +498,28 @@ export default function ObraDetail() {
   const trabajadorOptionLabel = (t) =>
     `${t.nombre}${t.cargo ? ` (${t.cargo})` : ''}${t.rut ? ` - ${t.rut}` : ''}`;
 
-  const selectTrabajadorByText = (value) => {
-    setTrabajadorSearch(value);
-    const normalized = value.trim().toLowerCase();
-    const tr = trabajadores.find((t) =>
-      trabajadorOptionLabel(t).toLowerCase() === normalized ||
-      (t.nombre || '').toLowerCase() === normalized ||
-      (t.rut || '').toLowerCase() === normalized
-    );
+  const filteredTrabajadores = trabajadores
+    .filter((t) => {
+      const q = trabajadorSearch.trim().toLowerCase();
+      if (!q) return true;
+      return trabajadorOptionLabel(t).toLowerCase().includes(q);
+    })
+    .slice(0, 8);
 
+  const selectTrabajador = (tr) => {
+    setTrabajadorSearch(trabajadorOptionLabel(tr));
+    setShowTrabajadorSuggestions(false);
     setNewAsistencia({
       ...newAsistencia,
-      trabajador_id: tr?.id || '',
-      sueldo_base_mensual: tr ? tr.sueldo_base_mensual : newAsistencia.sueldo_base_mensual,
+      trabajador_id: tr.id,
+      sueldo_base_mensual: tr.sueldo_base_mensual || '',
     });
+  };
+
+  const handleTrabajadorSearch = (value) => {
+    setTrabajadorSearch(value);
+    setShowTrabajadorSuggestions(true);
+    setNewAsistencia({ ...newAsistencia, trabajador_id: '' });
   };
 
   const calcPagoAsistencia = (row) => {
@@ -1059,18 +1068,26 @@ export default function ObraDetail() {
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title">👷 Registrar Asistencia - Trato</div>
             <form onSubmit={addAsistencia} className="form-grid" style={{ alignItems: 'flex-end' }}>
-              <div className="form-group">
+              <div className="form-group autocomplete-field">
                 <label>Trabajador</label>
                 <input
                   required
-                  list="trabajadores-list"
                   value={trabajadorSearch}
-                  onChange={(e) => selectTrabajadorByText(e.target.value)}
+                  onChange={(e) => handleTrabajadorSearch(e.target.value)}
+                  onFocus={() => setShowTrabajadorSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowTrabajadorSuggestions(false), 120)}
                   placeholder="Escribe nombre, cargo o RUT"
                 />
-                <datalist id="trabajadores-list">
-                  {trabajadores.map(t => <option key={t.id} value={trabajadorOptionLabel(t)} />)}
-                </datalist>
+                {showTrabajadorSuggestions && filteredTrabajadores.length > 0 && (
+                  <div className="autocomplete-menu">
+                    {filteredTrabajadores.map((t) => (
+                      <button type="button" key={t.id} onMouseDown={() => selectTrabajador(t)}>
+                        <strong>{t.nombre}</strong>
+                        <span>{t.cargo || 'Sin cargo'}{t.rut ? ` - ${t.rut}` : ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="form-group"><label>Sueldo Mensual ($)</label><input type="number" required value={newAsistencia.sueldo_base_mensual} onChange={e => setNewAsistencia({ ...newAsistencia, sueldo_base_mensual: e.target.value })} /></div>
               <div className="form-group"><label>Fecha</label><input type="date" required value={newAsistencia.fecha} onChange={e => setNewAsistencia({ ...newAsistencia, fecha: e.target.value })} /></div>
