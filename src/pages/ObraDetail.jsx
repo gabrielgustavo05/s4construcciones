@@ -57,6 +57,7 @@ export default function ObraDetail() {
   const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [] });
   const [loading, setLoading] = useState(true);
   const [excelPreview, setExcelPreview] = useState(null);
+  const [excelDebug, setExcelDebug] = useState(null);
 
   const [showEditObra, setShowEditObra] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -271,9 +272,14 @@ export default function ObraDetail() {
   // ── Importar Excel ──
   const handleExcelFile = async (e) => {
     try {
-      const items = await parseExcel(e.target.files[0]);
+      const result = await parseExcel(e.target.files[0]);
+      const items = result.items ?? result; // compatibilidad
+      const debug = result.debug ?? null;
       setExcelPreview(items);
-    } catch { alert('Error leyendo el archivo Excel'); }
+      setExcelDebug(debug);
+    } catch (err) {
+      alert('Error leyendo el archivo Excel: ' + (err?.message || err));
+    }
     e.target.value = '';
   };
 
@@ -833,6 +839,34 @@ export default function ObraDetail() {
           {excelPreview && (
             <div className="card" style={{ border: '1px solid var(--accent)' }}>
               <div className="card-title">📊 Vista previa — {excelPreview.length} ítems detectados</div>
+
+              {/* Panel de diagnóstico */}
+              {excelDebug && (
+                <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--r2)', padding: '10px 14px', margin: '0 0 12px', fontSize: 12 }}>
+                  <strong style={{ color: 'var(--accent)' }}>🔍 Columnas detectadas (fila {excelDebug.headerRow + 1} del Excel)</strong>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    {Object.entries(excelDebug.colNames).map(([key, name]) => {
+                      const labels = { num: 'Código', desc: 'Descripción', unit: 'Unidad', qty: 'Cantidad', price: 'Precio Unit.', total: 'Total' };
+                      const ok = name !== '(no detectada)';
+                      return (
+                        <span key={key} style={{ background: ok ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: ok ? 'var(--green)' : 'var(--red)', border: `1px solid ${ok ? 'var(--green)' : 'var(--red)'}`, borderRadius: 4, padding: '2px 8px' }}>
+                          {labels[key]}: <strong>{name}</strong>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {excelDebug.crossValidated && (
+                    <div style={{ marginTop: 6, color: 'var(--green)', fontWeight: 600 }}>✓ Cross-validación confirmada (Cant × Precio ≈ Total)</div>
+                  )}
+                  {!excelDebug.crossValidated && excelDebug.priceFromFallback && (
+                    <div style={{ marginTop: 6, color: 'var(--orange)', fontWeight: 600 }}>⚠️ Precio derivado de: Total ÷ Cantidad (no se detectó columna directa)</div>
+                  )}
+                  {excelDebug.colNames.price === '(no detectada)' && (
+                    <div style={{ marginTop: 6, color: 'var(--red)', fontWeight: 600 }}>❌ Columna de Precio Unitario no detectada — verifica el encabezado del Excel</div>
+                  )}
+                </div>
+              )}
+
               <div className="excel-preview">
                 <table>
                   <thead><tr><th>Código</th><th>Descripción</th><th>Und</th><th>Cantidad</th><th>P. Unitario</th><th>Total</th></tr></thead>
@@ -853,7 +887,7 @@ export default function ObraDetail() {
                           <td>{i.descripcion}</td>
                           <td>{i.unidad}</td>
                           <td className="mono">{i.cantidad}</td>
-                          <td className="mono">{clp(i.precio_unitario)}</td>
+                          <td className="mono" style={{ color: i.precio_unitario > 0 ? 'inherit' : 'var(--red)', fontWeight: i.precio_unitario > 0 ? 400 : 700 }}>{clp(i.precio_unitario)}</td>
                           <td className="mono">{clp(i.cantidad * i.precio_unitario)}</td>
                         </tr>
                       );
@@ -864,7 +898,7 @@ export default function ObraDetail() {
               {excelPreview.length > 20 && <p className="ts tx" style={{ padding: '8px 12px' }}>...y {excelPreview.length - 20} ítems más</p>}
               <div style={{ display: 'flex', gap: 8, padding: '12px 0 0' }}>
                 <button className="btn btn-a" onClick={confirmExcelImport}>✓ Importar {excelPreview.length} ítems</button>
-                <button className="btn btn-s" onClick={() => setExcelPreview(null)}>Cancelar</button>
+                <button className="btn btn-s" onClick={() => { setExcelPreview(null); setExcelDebug(null); }}>Cancelar</button>
               </div>
             </div>
           )}
