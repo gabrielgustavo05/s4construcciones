@@ -745,7 +745,7 @@ export default function ObraDetail() {
 
   if (!obra) return <div className="loading-center"><div className="spinner" />Cargando...</div>;
 
-  const { total: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
+  const { neto: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
   const totalComp = calcCostoReal({
     compras: data.compras,
     asistencia: data.asistencia,
@@ -1082,13 +1082,13 @@ export default function ObraDetail() {
                   Utilidades
                   <input type="number" step="0.1" value={obra.utilidad_pct} onChange={e => updatePct('utilidad_pct', e.target.value)} style={{ width: 40, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', padding: '0 4px', borderRadius: 'var(--r2)', fontSize: 10, textAlign: 'center', height: 18 }} /> {'%'}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>Subtotal Neto</div>
-                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>IVA (19 %)</div>
-                <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>PRESUPUESTO TOTAL</div>
+                <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>PRESUPUESTO NETO</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>IVA 19% (referencia)</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>Total c/IVA (referencia)</div>
               </div>
               <div style={{ textAlign: 'right', fontFamily: 'Courier New' }}>
-                {[subtotal, gastosGenerales, utilidad, neto, iva, totalPres].map((v, i) => (
-                  <div key={i} style={{ fontSize: i === 5 ? 14 : 11, color: i === 5 ? 'var(--accent)' : 'var(--text)', fontWeight: i === 5 ? 800 : 600, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{clp(v)}</div>
+                {[subtotal, gastosGenerales, utilidad, neto, iva, neto + iva].map((v, i) => (
+                  <div key={i} style={{ fontSize: i === 3 ? 14 : 11, color: i === 3 ? 'var(--accent)' : i >= 4 ? 'var(--text3)' : 'var(--text)', fontWeight: i === 3 ? 800 : 600, marginBottom: 6, lineHeight: '1.6', height: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{clp(v)}</div>
                 ))}
               </div>
             </div>

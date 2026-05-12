@@ -18,7 +18,7 @@ export default function Alertas() {
 
     const list = [];
     for (const o of obras) {
-      const { total: totalPres } = calcPresupuesto(o.presupuesto_items || []);
+      const { neto: totalPres } = calcPresupuesto(o.presupuesto_items || []);
       const totalComp = calcCompras(o.compras || []);
       const pctGasto = totalPres > 0 ? (totalComp / totalPres) * 100 : 0;
 

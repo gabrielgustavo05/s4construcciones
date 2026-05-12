@@ -60,7 +60,7 @@ export default function Dashboard() {
 
       const obrasData = principales.map((main) => {
         const espejo = espejos.find((e) => e.obra_padre_id === main.id);
-        const { total: totalPres } = calcPresupuesto(
+        const { neto: totalPres } = calcPresupuesto(
           main.presupuesto_items || [],
           main.gastos_generales_pct,
           main.utilidad_pct

@@ -52,7 +52,7 @@ export default function Obras() {
       const mirroredIds = new Set(electricData?.map(e => e.obra_padre_id) || []);
       setObras(constructionData.map((o) => ({
         ...o,
-        totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).total,
+        totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).neto,
         totalCompras: calcCostoReal({ compras: o.compras || [], asistencia: o.asistencia || [], subcontratos: o.subcontratos || [] }).total,
         hasMirror: mirroredIds.has(o.id)
       })));
