@@ -22,6 +22,7 @@ export const ESPECIALIDADES = [
 ];
 
 export const LICITACION_FINALIZADA = ['Adjudicada', 'Perdida', 'Cerrada'];
+export const LICITACION_RESUELTA = ['Enviada', ...LICITACION_FINALIZADA];
 
 export const emptyLicitacion = {
   nombre_licitacion: '',
@@ -64,6 +65,7 @@ export const getPendingSpecialties = (licitacion) =>
 
 export const getLicitacionHealth = (licitacion) => {
   if (LICITACION_FINALIZADA.includes(licitacion.estado)) return 'closed';
+  if (licitacion.estado === 'Enviada') return 'ready';
 
   const pending = getPendingSpecialties(licitacion);
   const days = daysUntil(licitacion.fecha_entrega);
@@ -89,6 +91,7 @@ export const getHealthLabel = (licitacion) => {
   const pending = getPendingSpecialties(licitacion);
 
   if (health === 'closed') return 'Finalizada';
+  if (licitacion.estado === 'Enviada') return 'Enviada';
   if (health === 'ready') return 'Lista';
   if (health === 'danger') return days < 0 ? 'Vencida con pendientes' : 'Riesgo por fecha';
   return `${pending.length} pendiente${pending.length === 1 ? '' : 's'}`;
