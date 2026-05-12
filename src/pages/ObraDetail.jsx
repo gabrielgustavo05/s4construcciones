@@ -62,6 +62,7 @@ export default function ObraDetail() {
   const [editForm, setEditForm] = useState({});
 
   const [trabajadores, setTrabajadores] = useState([]);
+  const [trabajadorSearch, setTrabajadorSearch] = useState('');
   const [newAsistencia, setNewAsistencia] = useState({ trabajador_id: '', fecha: today(), dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
 
   const [materialesGlobales, setMaterialesGlobales] = useState([]);
@@ -489,7 +490,27 @@ export default function ObraDetail() {
     const { error } = await supabase.from('asistencia').insert([payload]);
     if (error) return alert('Error al registrar asistencia: ' + error.message);
     setNewAsistencia({ ...newAsistencia, trabajador_id: '', dias_trabajados: 1, horas_extra: 0, bono_trato: 0, descuentos: 0, sueldo_base_mensual: '' });
+    setTrabajadorSearch('');
     fetchTab(2); // tab 2 es Asistencia
+  };
+
+  const trabajadorOptionLabel = (t) =>
+    `${t.nombre}${t.cargo ? ` (${t.cargo})` : ''}${t.rut ? ` - ${t.rut}` : ''}`;
+
+  const selectTrabajadorByText = (value) => {
+    setTrabajadorSearch(value);
+    const normalized = value.trim().toLowerCase();
+    const tr = trabajadores.find((t) =>
+      trabajadorOptionLabel(t).toLowerCase() === normalized ||
+      (t.nombre || '').toLowerCase() === normalized ||
+      (t.rut || '').toLowerCase() === normalized
+    );
+
+    setNewAsistencia({
+      ...newAsistencia,
+      trabajador_id: tr?.id || '',
+      sueldo_base_mensual: tr ? tr.sueldo_base_mensual : newAsistencia.sueldo_base_mensual,
+    });
   };
 
   const calcPagoAsistencia = (row) => {
@@ -1040,14 +1061,16 @@ export default function ObraDetail() {
             <form onSubmit={addAsistencia} className="form-grid" style={{ alignItems: 'flex-end' }}>
               <div className="form-group">
                 <label>Trabajador</label>
-                <select required value={newAsistencia.trabajador_id} onChange={e => {
-                  const tid = e.target.value;
-                  const tr = trabajadores.find(t => t.id === tid);
-                  setNewAsistencia({ ...newAsistencia, trabajador_id: tid, sueldo_base_mensual: tr ? tr.sueldo_base_mensual : '' });
-                }}>
-                  <option value="">Seleccione...</option>
-                  {trabajadores.map(t => <option key={t.id} value={t.id}>{t.nombre} ({t.cargo})</option>)}
-                </select>
+                <input
+                  required
+                  list="trabajadores-list"
+                  value={trabajadorSearch}
+                  onChange={(e) => selectTrabajadorByText(e.target.value)}
+                  placeholder="Escribe nombre, cargo o RUT"
+                />
+                <datalist id="trabajadores-list">
+                  {trabajadores.map(t => <option key={t.id} value={trabajadorOptionLabel(t)} />)}
+                </datalist>
               </div>
               <div className="form-group"><label>Sueldo Mensual ($)</label><input type="number" required value={newAsistencia.sueldo_base_mensual} onChange={e => setNewAsistencia({ ...newAsistencia, sueldo_base_mensual: e.target.value })} /></div>
               <div className="form-group"><label>Fecha</label><input type="date" required value={newAsistencia.fecha} onChange={e => setNewAsistencia({ ...newAsistencia, fecha: e.target.value })} /></div>
