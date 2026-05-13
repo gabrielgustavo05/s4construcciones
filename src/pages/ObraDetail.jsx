@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 
 const TABS = ['Resumen', 'Presupuesto', 'RRHH', 'Compras', 'Solicitudes', 'Cotizaciones', 'Subcontratos', 'Hitos', 'Estados de Pago'];
+const ESTADOS_EPO = ['Emitido', 'En revisión', 'Aprobado', 'Pagado', 'Rechazado'];
 const PRESUPUESTO_COLUMNS = [
   { key: 'n', label: 'N°', width: 52, minWidth: 42, align: 'center' },
   { key: 'codigo', label: 'Código', width: 90, minWidth: 70 },
@@ -742,6 +743,15 @@ export default function ObraDetail() {
     const { error } = await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: parseNum(newEstadoPago.monto_bruto), retencion_pct: parseNum(newEstadoPago.retencion_pct) }]);
     if (error) return alert('Error al crear estado de pago: ' + error.message);
     setNewEstadoPago({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+    fetchTab(8);
+  };
+
+  const updateEstadoPago = async (epId, estado) => {
+    const { error } = await supabase.from('estados_pago').update({ estado }).eq('id', epId);
+    if (error) {
+      alert('No se pudo actualizar el estado de pago: ' + error.message);
+      return;
+    }
     fetchTab(8);
   };
 
@@ -1686,6 +1696,12 @@ export default function ObraDetail() {
               <div className="form-group"><label>Descripción</label><input required value={newEstadoPago.descripcion} onChange={e => setNewEstadoPago({ ...newEstadoPago, descripcion: e.target.value })} /></div>
               <div className="form-group"><label>Monto Bruto ($)</label><input type="number" required value={newEstadoPago.monto_bruto} onChange={e => setNewEstadoPago({ ...newEstadoPago, monto_bruto: e.target.value })} /></div>
               <div className="form-group"><label>Retención (%)</label><input type="number" value={newEstadoPago.retencion_pct} onChange={e => setNewEstadoPago({ ...newEstadoPago, retencion_pct: e.target.value })} /></div>
+              <div className="form-group">
+                <label>Estado</label>
+                <select value={newEstadoPago.estado} onChange={e => setNewEstadoPago({ ...newEstadoPago, estado: e.target.value })}>
+                  {ESTADOS_EPO.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
               <button className="btn btn-a">+</button>
             </form>
           </div>
@@ -1705,7 +1721,18 @@ export default function ObraDetail() {
                         <td className="mono">{clp(ep.monto_bruto)}</td>
                         <td className="mono tg">{clp(neto)}</td>
                         <td className="ts">{ep.fecha_emision}</td>
-                        <td><Badge estado={ep.estado} /></td>
+                        <td>
+                          <div style={{ display: 'grid', gap: 6, minWidth: 130 }}>
+                            <Badge estado={ep.estado} />
+                            <select
+                              value={ep.estado}
+                              onChange={(e) => updateEstadoPago(ep.id, e.target.value)}
+                              style={{ background:'var(--bg2)', border:'1px solid var(--border2)', color:'var(--text)', padding:'5px 8px', borderRadius:'var(--r2)', fontSize:11 }}
+                            >
+                              {ESTADOS_EPO.map((s) => <option key={s}>{s}</option>)}
+                            </select>
+                          </div>
+                        </td>
                         <td><button className="btn btn-d btn-sm" onClick={() => deleteRow('estados_pago', ep.id)}>✕</button></td>
                       </tr>
                     );

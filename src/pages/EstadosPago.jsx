@@ -5,6 +5,7 @@ import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 
 const EMPTY = { obra_id:'', numero:'', descripcion:'', monto_bruto:'', retencion_pct:'5', fecha_emision: today(), fecha_pago_estimada:'', estado:'Emitido' };
+const ESTADOS_EPO = ['Emitido', 'En revisión', 'Aprobado', 'Pagado', 'Rechazado'];
 
 export default function EstadosPago() {
   const [eps, setEps] = useState([]);
@@ -38,6 +39,15 @@ export default function EstadosPago() {
     const { error } = await supabase.from('estados_pago').delete().eq('id', id);
     if (error) {
       alert('No se pudo eliminar el estado de pago: ' + error.message);
+      return;
+    }
+    fetchData();
+  };
+
+  const handleEstadoChange = async (id, estado) => {
+    const { error } = await supabase.from('estados_pago').update({ estado }).eq('id', id);
+    if (error) {
+      alert('No se pudo actualizar el estado de pago: ' + error.message);
       return;
     }
     fetchData();
@@ -83,7 +93,18 @@ export default function EstadosPago() {
                       <td className="mono tg">{clp(neto)}</td>
                       <td className="ts">{ep.fecha_emision}</td>
                       <td className="ts">{ep.fecha_pago_estimada||'-'}</td>
-                      <td><Badge estado={ep.estado}/></td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 6, minWidth: 130 }}>
+                          <Badge estado={ep.estado}/>
+                          <select
+                            value={ep.estado}
+                            onChange={(e) => handleEstadoChange(ep.id, e.target.value)}
+                            style={{ background:'var(--bg2)', border:'1px solid var(--border2)', color:'var(--text)', padding:'5px 8px', borderRadius:'var(--r2)', fontSize:11 }}
+                          >
+                            {ESTADOS_EPO.map((s) => <option key={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      </td>
                       <td><button className="btn btn-d btn-sm" onClick={() => handleDelete(ep.id)}>🗑</button></td>
                     </tr>
                   );
@@ -114,7 +135,7 @@ export default function EstadosPago() {
               <div className="form-group"><label>% RETENCIÓN</label><input type="number" value={form.retencion_pct} onChange={e => setForm({...form, retencion_pct: e.target.value})}/></div>
               <div className="form-group"><label>ESTADO</label>
                 <select value={form.estado} onChange={e => setForm({...form, estado: e.target.value})}>
-                  {['Emitido','En revisión','Aprobado','Pagado','Rechazado'].map(s => <option key={s}>{s}</option>)}
+                  {ESTADOS_EPO.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
             </div>
