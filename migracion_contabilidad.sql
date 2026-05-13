@@ -6,10 +6,10 @@
 CREATE TABLE IF NOT EXISTS cuentas_obra (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   obra_id UUID NOT NULL REFERENCES obras(id) ON DELETE CASCADE,
-  clasificacion TEXT DEFAULT 'Gastos',
-  cuenta TEXT NOT NULL,
+  numero TEXT NOT NULL,
+  descripcion TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT uq_cuenta_obra UNIQUE (obra_id, cuenta)
+  CONSTRAINT uq_cuenta_obra UNIQUE (obra_id, numero)
 );
 
 -- 2. TABLA movimientos_contables (El "Detalle Pegado")
