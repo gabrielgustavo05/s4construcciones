@@ -88,6 +88,9 @@ export default function ObraDetail() {
   const [subTabCompras, setSubTabCompras] = useState('contabilidad');
   const [expandedCuentas, setExpandedCuentas] = useState({});
   const [newCuenta, setNewCuenta] = useState({ numero: '', descripcion: '' });
+  const [showAddGrupo, setShowAddGrupo] = useState(false);
+  const [showPasteGroup, setShowPasteGroup] = useState({});
+  const togglePasteGroup = (ctaId) => setShowPasteGroup(p => ({ ...p, [ctaId]: !p[ctaId] }));
   const [pasteText, setPasteText] = useState({}); // store paste text per account ID
 
   const toggleCuenta = (ctaId) => setExpandedCuentas(p => ({ ...p, [ctaId]: !p[ctaId] }));
@@ -612,6 +615,7 @@ export default function ObraDetail() {
     const { error } = await supabase.from('cuentas_obra').insert([{ obra_id: id, numero: newCuenta.numero, descripcion: newCuenta.descripcion }]);
     if (error) return alert('Error al agregar grupo contable: ' + error.message);
     setNewCuenta({ numero: '', descripcion: '' });
+    setShowAddGrupo(false);
     fetchTab(3);
   };
 
@@ -1241,13 +1245,19 @@ export default function ObraDetail() {
               <>
                 <div className="fb" style={{ marginBottom: 14 }}>
                   <h3 style={{ fontSize: 15, fontWeight: 800 }}>Resumen Contable (Desde Excel)</h3>
+                  {!showAddGrupo && (
+                    <button className="btn btn-s btn-sm" onClick={() => setShowAddGrupo(true)}>➕ Nuevo Grupo</button>
+                  )}
                 </div>
 
-                <form onSubmit={addCuentaObra} style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                  <input required placeholder="Número (ej: 3203003)" value={newCuenta.numero} onChange={e => setNewCuenta({...newCuenta, numero: e.target.value})} style={{ width: 180 }} />
-                  <input required placeholder="Descripción (ej: Materiales e Insumos)" value={newCuenta.descripcion} onChange={e => setNewCuenta({...newCuenta, descripcion: e.target.value})} style={{ flex: 1 }} />
-                  <button type="submit" className="btn btn-a">➕ Agregar Grupo</button>
-                </form>
+                {showAddGrupo && (
+                  <form onSubmit={addCuentaObra} style={{ display: 'flex', gap: 10, marginBottom: 14, background: 'var(--bg2)', padding: 14, borderRadius: 8, border: '1px solid var(--border)' }}>
+                    <input required placeholder="Número (ej: 3203003)" value={newCuenta.numero} onChange={e => setNewCuenta({...newCuenta, numero: e.target.value})} style={{ width: 180 }} />
+                    <input required placeholder="Descripción (ej: Materiales e Insumos)" value={newCuenta.descripcion} onChange={e => setNewCuenta({...newCuenta, descripcion: e.target.value})} style={{ flex: 1 }} />
+                    <button type="submit" className="btn btn-a">Guardar</button>
+                    <button type="button" className="btn btn-d" onClick={() => setShowAddGrupo(false)}>Cancelar</button>
+                  </form>
+                )}
 
                 <div className="card" style={{ padding: 0 }}>
                   <div className="tw">
@@ -1285,15 +1295,25 @@ export default function ObraDetail() {
                                   <td colSpan="5" style={{ padding: 0, border: 0 }}>
                                     <div style={{ background: 'var(--bg3)', padding: '14px 14px 14px 40px' }}>
                                       
-                                      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                                        <textarea 
-                                          placeholder="Pega aquí (Ctrl+V) las filas copiadas desde Excel con el detalle de este grupo..."
-                                          style={{ flex: 1, height: 40, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', borderRadius: 4, border: '1px solid var(--border2)' }}
-                                          value={pasteText[g.id] || ''}
-                                          onChange={e => setPasteText({...pasteText, [g.id]: e.target.value})}
-                                        />
-                                        <button className="btn btn-a" onClick={() => handlePasteCuentaDetail(g.id)} disabled={!pasteText[g.id]}>Pegar Detalle</button>
+                                      <div className="fb" style={{ marginBottom: 14 }}>
+                                        <h4 style={{ fontSize: 13, margin: 0, fontWeight: 600 }}>Detalle de movimientos</h4>
+                                        {!showPasteGroup[g.id] && (
+                                          <button className="btn btn-s btn-sm" onClick={() => togglePasteGroup(g.id)}>➕ Pegar más datos</button>
+                                        )}
                                       </div>
+
+                                      {showPasteGroup[g.id] && (
+                                        <div style={{ display: 'flex', gap: 10, marginBottom: 14, background: 'var(--bg)', padding: 12, borderRadius: 6, border: '1px dashed var(--border)' }}>
+                                          <textarea 
+                                            placeholder="Pega aquí (Ctrl+V) las filas copiadas desde Excel con el detalle de este grupo..."
+                                            style={{ flex: 1, height: 40, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', borderRadius: 4, border: '1px solid var(--border2)' }}
+                                            value={pasteText[g.id] || ''}
+                                            onChange={e => setPasteText({...pasteText, [g.id]: e.target.value})}
+                                          />
+                                          <button className="btn btn-a" onClick={() => { handlePasteCuentaDetail(g.id); togglePasteGroup(g.id); }} disabled={!pasteText[g.id]}>Guardar</button>
+                                          <button className="btn btn-d" onClick={() => togglePasteGroup(g.id)}>Cancelar</button>
+                                        </div>
+                                      )}
 
                                       {g.movimientos_contables && g.movimientos_contables.length > 0 ? (
                                       <table style={{ background: 'var(--bg)', border: '1px solid var(--border)', margin: '0', borderRadius: 6, overflow: 'hidden' }}>
