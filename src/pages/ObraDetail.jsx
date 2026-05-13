@@ -625,6 +625,18 @@ export default function ObraDetail() {
     fetchTab(3);
   };
 
+  const deleteAllMovimientos = async (cuentaId) => {
+    if (!window.confirm('¿Estás seguro de que quieres VACIAR todos los detalles de este grupo? El grupo se mantendrá vacío.')) return;
+    await supabase.from('movimientos_contables').delete().eq('cuenta_obra_id', cuentaId);
+    fetchTab(3);
+  };
+
+  const deleteMovimiento = async (movId) => {
+    if (!window.confirm('¿Eliminar esta fila de detalle?')) return;
+    await supabase.from('movimientos_contables').delete().eq('id', movId);
+    fetchTab(3);
+  };
+
   const handlePasteCuentaDetail = async (cuentaId) => {
     const text = pasteText[cuentaId];
     if (!text || !text.trim()) return alert('Pega el texto de Excel en el cuadro.');
@@ -1297,9 +1309,14 @@ export default function ObraDetail() {
                                       
                                       <div className="fb" style={{ marginBottom: 14 }}>
                                         <h4 style={{ fontSize: 13, margin: 0, fontWeight: 600 }}>Detalle de movimientos</h4>
-                                        {!showPasteGroup[g.id] && (
-                                          <button className="btn btn-s btn-sm" onClick={() => togglePasteGroup(g.id)}>➕ Pegar más datos</button>
-                                        )}
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                          {!showPasteGroup[g.id] && (
+                                            <button className="btn btn-s btn-sm" onClick={() => togglePasteGroup(g.id)}>➕ Pegar más datos</button>
+                                          )}
+                                          {g.movimientos_contables && g.movimientos_contables.length > 0 && (
+                                            <button className="btn btn-d btn-sm" onClick={() => deleteAllMovimientos(g.id)}>🗑️ Vaciar Detalles</button>
+                                          )}
+                                        </div>
                                       </div>
 
                                       {showPasteGroup[g.id] && (
@@ -1328,6 +1345,7 @@ export default function ObraDetail() {
                                             <th className="ts" style={{ padding: '6px 12px' }}>RUT</th>
                                             <th className="ts" style={{ padding: '6px 12px' }}>NOMBRE</th>
                                             <th className="ts" style={{ padding: '6px 12px', textAlign: 'right' }}>SALDO</th>
+                                            <th style={{ width: 30 }}></th>
                                           </tr>
                                         </thead>
                                         <tbody>
@@ -1342,6 +1360,7 @@ export default function ObraDetail() {
                                               <td className="ts tx">{m.rut_proveedor}</td>
                                               <td className="ts tx">{m.nombre_proveedor}</td>
                                               <td className="mono ts" style={{ textAlign: 'right' }}>{clp(m.saldo)}</td>
+                                              <td style={{ textAlign: 'center' }}><button className="btn btn-d btn-sm" onClick={() => deleteMovimiento(m.id)} style={{ padding: '2px 6px', fontSize: 10 }} title="Eliminar fila">✕</button></td>
                                             </tr>
                                           ))}
                                         </tbody>
