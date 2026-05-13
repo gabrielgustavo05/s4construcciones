@@ -87,7 +87,7 @@ export default function ObraDetail() {
   const [newEstadoPago, setNewEstadoPago] = useState({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
   const [subTabCompras, setSubTabCompras] = useState('contabilidad');
   const [expandedCuentas, setExpandedCuentas] = useState({});
-  const [newCuenta, setNewCuenta] = useState({ clasificacion: 'Gastos', cuenta: '' });
+  const [newCuenta, setNewCuenta] = useState({ clasificacion: '', cuenta: '' });
   const [pasteText, setPasteText] = useState({}); // store paste text per account ID
 
   const toggleCuenta = (ctaId) => setExpandedCuentas(p => ({ ...p, [ctaId]: !p[ctaId] }));
@@ -611,7 +611,7 @@ export default function ObraDetail() {
     e.preventDefault();
     const { error } = await supabase.from('cuentas_obra').insert([{ obra_id: id, clasificacion: newCuenta.clasificacion, cuenta: newCuenta.cuenta }]);
     if (error) return alert('Error al agregar grupo contable: ' + error.message);
-    setNewCuenta({ clasificacion: 'Gastos', cuenta: '' });
+    setNewCuenta({ clasificacion: '', cuenta: '' });
     fetchTab(3);
   };
 
@@ -1246,8 +1246,8 @@ export default function ObraDetail() {
                 </div>
 
                 <form onSubmit={addCuentaObra} style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                  <input required placeholder="Clasificación (ej: Gastos)" value={newCuenta.clasificacion} onChange={e => setNewCuenta({...newCuenta, clasificacion: e.target.value})} style={{ width: 180 }} />
-                  <input required placeholder="Nombre de la Cuenta (ej: 3203003 Materiales e Insumos)" value={newCuenta.cuenta} onChange={e => setNewCuenta({...newCuenta, cuenta: e.target.value})} style={{ flex: 1 }} />
+                  <input required placeholder="Número (ej: 3203003)" value={newCuenta.clasificacion} onChange={e => setNewCuenta({...newCuenta, clasificacion: e.target.value})} style={{ width: 180 }} />
+                  <input required placeholder="Descripción (ej: Materiales e Insumos)" value={newCuenta.cuenta} onChange={e => setNewCuenta({...newCuenta, cuenta: e.target.value})} style={{ flex: 1 }} />
                   <button type="submit" className="btn btn-a">➕ Agregar Grupo</button>
                 </form>
 
@@ -1257,8 +1257,8 @@ export default function ObraDetail() {
                       <thead>
                         <tr>
                           <th style={{ width: 40 }}></th>
-                          <th style={{ width: 150 }}>Clasificación</th>
-                          <th>Cuenta</th>
+                          <th style={{ width: 150 }}>Número</th>
+                          <th>Descripción</th>
                           <th style={{ textAlign: 'right', width: 150 }}>Suma de SALDO</th>
                           <th style={{ width: 40 }}></th>
                         </tr>
