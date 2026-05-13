@@ -43,6 +43,7 @@ export default function DptoElectrico() {
           gastos_generales_pct, utilidad_pct, fecha_fin,
           presupuesto_items ( cantidad, precio_unitario ),
           compras ( cantidad, precio_unitario ),
+          cuentas_obra ( movimientos_contables ( saldo ) ),
           asistencia ( total_pago ),
           subcontratos ( monto_contrato )
         `)
@@ -55,7 +56,7 @@ export default function DptoElectrico() {
       setObras(data.map((o) => ({
         ...o,
         totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).neto,
-        totalCompras: calcCostoReal({ compras: o.compras || [], asistencia: o.asistencia || [], subcontratos: o.subcontratos || [] }).total,
+        totalCompras: calcCostoReal({ compras: o.compras || [], cuentas_obra: o.cuentas_obra || [], asistencia: o.asistencia || [], subcontratos: o.subcontratos || [] }).total,
       })));
     }
     if (obrasConstruccion) setObrasMadre(obrasConstruccion);
