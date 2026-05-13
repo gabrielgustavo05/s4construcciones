@@ -88,6 +88,8 @@ export default function ObraDetail() {
   const [subTabCompras, setSubTabCompras] = useState('contabilidad');
   const [expandedCuentas, setExpandedCuentas] = useState({});
   const [newCuenta, setNewCuenta] = useState({ numero: '', descripcion: '' });
+  const [editingCuentaId, setEditingCuentaId] = useState(null);
+  const [editCuentaForm, setEditCuentaForm] = useState({ numero: '', descripcion: '' });
   const [showAddGrupo, setShowAddGrupo] = useState(false);
   const [showPasteGroup, setShowPasteGroup] = useState({});
   const togglePasteGroup = (ctaId) => setShowPasteGroup(p => ({ ...p, [ctaId]: !p[ctaId] }));
@@ -612,11 +614,23 @@ export default function ObraDetail() {
 
   const addCuentaObra = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('cuentas_obra').insert([{ obra_id: id, numero: newCuenta.numero, descripcion: newCuenta.descripcion }]);
-    if (error) return alert('Error al agregar grupo contable: ' + error.message);
-    setNewCuenta({ numero: '', descripcion: '' });
-    setShowAddGrupo(false);
-    fetchTab(3);
+    const { error } = await supabase.from('cuentas_obra').insert([{ ...newCuenta, obra_id: id }]);
+    if (error) alert('Error creando grupo: ' + error.message);
+    else {
+      setNewCuenta({ numero: '', descripcion: '' });
+      setShowAddGrupo(false);
+      fetchTab(3);
+    }
+  };
+
+  const updateCuentaObra = async (e, cuentaId) => {
+    e.preventDefault();
+    const { error } = await supabase.from('cuentas_obra').update(editCuentaForm).eq('id', cuentaId);
+    if (error) alert('Error actualizando grupo: ' + error.message);
+    else {
+      setEditingCuentaId(null);
+      fetchTab(3);
+    }
   };
 
   const deleteCuentaObra = async (cuentaId) => {
@@ -1294,13 +1308,43 @@ export default function ObraDetail() {
                               <Fragment key={g.id}>
                                 <tr style={{ background: 'var(--bg2)' }}>
                                 <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer', textAlign: 'center' }}>{isExp ? '▾' : '▸'}</td>
-                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer' }}>{g.numero}</td>
-                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer' }}><strong>{g.descripcion}</strong></td>
+                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer' }}>
+                                  {editingCuentaId === g.id ? (
+                                    <input 
+                                      value={editCuentaForm.numero} 
+                                      onChange={e => setEditCuentaForm({...editCuentaForm, numero: e.target.value})} 
+                                      style={{ width: '100%', minWidth: 80 }} 
+                                      onClick={e => e.stopPropagation()}
+                                    />
+                                  ) : g.numero}
+                                </td>
+                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer' }}>
+                                  {editingCuentaId === g.id ? (
+                                    <input 
+                                      value={editCuentaForm.descripcion} 
+                                      onChange={e => setEditCuentaForm({...editCuentaForm, descripcion: e.target.value})} 
+                                      style={{ width: '100%', minWidth: 150 }} 
+                                      onClick={e => e.stopPropagation()}
+                                    />
+                                  ) : <strong>{g.descripcion}</strong>}
+                                </td>
                                 <td className="mono" style={{ textAlign: 'right', color: totalGrupo < 0 ? 'var(--red)' : 'var(--text)', fontWeight: 800 }}>
                                   {clp(totalGrupo)}
                                 </td>
                                 <td>
-                                  <button className="btn btn-d btn-sm" onClick={() => deleteCuentaObra(g.id)} title="Eliminar grupo">✕</button>
+                                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                    {editingCuentaId === g.id ? (
+                                      <>
+                                        <button className="btn btn-a btn-sm" onClick={(e) => updateCuentaObra(e, g.id)} title="Guardar">✓</button>
+                                        <button className="btn btn-s btn-sm" onClick={() => setEditingCuentaId(null)} title="Cancelar">✕</button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button className="btn btn-s btn-sm" onClick={() => { setEditingCuentaId(g.id); setEditCuentaForm({ numero: g.numero, descripcion: g.descripcion }); }} title="Editar grupo">✏️</button>
+                                        <button className="btn btn-d btn-sm" onClick={() => deleteCuentaObra(g.id)} title="Eliminar grupo">✕</button>
+                                      </>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                               {isExp && (
