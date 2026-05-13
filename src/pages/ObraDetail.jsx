@@ -633,10 +633,8 @@ export default function ObraDetail() {
       if (res.error) return alert(res.error);
       
       const movsToInsert = res.movimientos.map(m => {
-        // override with forced id, no matter what C.C. said
-        const { obra_id, centro_costo, hash_unico, ...rest } = m;
-        // recalculate hash specifically for this group insertion?
-        // or just keep hash_unico but make it robust
+        // Excluimos las propiedades que ya no existen en la base de datos para movimientos_contables
+        const { obra_id, centro_costo, hash_unico, clasificacion, cuenta, ...rest } = m;
         return {
           ...rest,
           cuenta_obra_id: cuentaId,
