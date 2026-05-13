@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   ClipboardList,
+  ClipboardPaste,
   ClipboardPlus,
   DollarSign,
   FileText,
@@ -41,6 +42,7 @@ const NAV = [
     items: [
       { to: '/estados-pago', icon: ReceiptText, label: 'Estados de Pago' },
       { to: '/flujo-caja', icon: DollarSign, label: 'Flujo de Caja' },
+      { to: '/pegar-contabilidad', icon: ClipboardPaste, label: 'Pegar Contabilidad' },
     ],
   },
   {

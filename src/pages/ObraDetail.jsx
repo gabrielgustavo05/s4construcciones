@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { clp, fmtDate, today, calcPresupuesto, calcCompras, calcAsistencia, calcCostoReal, parseExcel, parseNum, cleanNum } from '../lib/helpers';
@@ -54,7 +54,7 @@ export default function ObraDetail() {
   const { id } = useParams(); const navigate = useNavigate();
   const [obra, setObra] = useState(null);
   const [tab, setTab] = useState(0);
-  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [] });
+  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [], movimientos_contables: [] });
   const [loading, setLoading] = useState(true);
   const [excelPreview, setExcelPreview] = useState(null);
   const [excelDebug, setExcelDebug] = useState(null);
@@ -85,8 +85,10 @@ export default function ObraDetail() {
   const [newSubcontrato, setNewSubcontrato] = useState({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
   const [newHito, setNewHito] = useState({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
   const [newEstadoPago, setNewEstadoPago] = useState({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+  const [subTabCompras, setSubTabCompras] = useState('contabilidad');
+  const [expandedCuentas, setExpandedCuentas] = useState({});
 
-
+  const toggleCuenta = (cta) => setExpandedCuentas(p => ({ ...p, [cta]: !p[cta] }));
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*').eq('id', id).single();
     if (o) {
@@ -192,6 +194,9 @@ export default function ObraDetail() {
     if (table === 'compras') {
       const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad, precio_unitario').eq('obra_id', id).order('created_at', { ascending: true });
       setPresupuestoItems(items || []);
+
+      const { data: movs } = await supabase.from('movimientos_contables').select('*').eq('obra_id', id).order('fecha', { ascending: false });
+      setData(d => ({ ...d, movimientos_contables: movs || [] }));
     }
 
     setLoading(false);
@@ -1174,7 +1179,114 @@ export default function ObraDetail() {
       {/* ── TAB 3: COMPRAS ── */}
       {tab === 3 && (
         <div className="tab-panel active">
-          <form onSubmit={addCompra} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, marginBottom: 14 }}>
+          
+          <div className="tab-buttons" style={{ marginBottom: 16 }}>
+            <button className={`tab-btn ${subTabCompras === 'contabilidad' ? 'active' : ''}`} onClick={() => setSubTabCompras('contabilidad')}>📊 Gastos Contabilidad</button>
+            <button className={`tab-btn ${subTabCompras === 'manual' ? 'active' : ''}`} onClick={() => setSubTabCompras('manual')}>🛒 Compras Manuales</button>
+          </div>
+
+          {subTabCompras === 'contabilidad' && (() => {
+            const agrupados = data.movimientos_contables.reduce((acc, mov) => {
+              const cta = mov.cuenta || 'Sin Cuenta';
+              if (!acc[cta]) acc[cta] = { cuenta: cta, clasificacion: mov.clasificacion || 'Gastos', movimientos: [], total: 0 };
+              acc[cta].movimientos.push(mov);
+              acc[cta].total += mov.saldo;
+              return acc;
+            }, {});
+            const listaAgrupada = Object.values(agrupados).sort((a,b) => a.cuenta.localeCompare(b.cuenta));
+            const totalGral = listaAgrupada.reduce((s, a) => s + a.total, 0);
+
+            return (
+              <>
+                <div className="fb" style={{ marginBottom: 14 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 800 }}>Resumen Contable (Desde Excel)</h3>
+                  <Link to="/pegar-contabilidad" className="btn btn-s btn-sm">📋 Pegar nuevos datos</Link>
+                </div>
+
+                <div className="card" style={{ padding: 0 }}>
+                  <div className="tw">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 40 }}></th>
+                          <th style={{ width: 150 }}>Clasificación</th>
+                          <th>Cuenta</th>
+                          <th style={{ textAlign: 'right', width: 150 }}>Suma de SALDO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {listaAgrupada.length === 0 ? (
+                          <tr><td colSpan="4" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay movimientos asignados a esta obra.</td></tr>
+                        ) : listaAgrupada.map(g => {
+                          const isExp = expandedCuentas[g.cuenta];
+                          return (
+                              <Fragment key={g.cuenta}>
+                                <tr onClick={() => toggleCuenta(g.cuenta)} style={{ cursor: 'pointer', background: 'var(--bg2)' }}>
+                                <td style={{ textAlign: 'center' }}>{isExp ? '▾' : '▸'}</td>
+                                <td>{g.clasificacion}</td>
+                                <td><strong>{g.cuenta}</strong></td>
+                                <td className="mono" style={{ textAlign: 'right', color: g.total < 0 ? 'var(--red)' : 'var(--text)', fontWeight: 800 }}>
+                                  {clp(g.total)}
+                                </td>
+                              </tr>
+                              {isExp && (
+                                <tr>
+                                  <td colSpan="4" style={{ padding: 0, border: 0 }}>
+                                    <div style={{ background: 'var(--bg3)', padding: '0 10px 10px 40px' }}>
+                                      <table style={{ background: 'var(--bg)', border: '1px solid var(--border)', margin: '8px 0', borderRadius: 6, overflow: 'hidden' }}>
+                                        <thead>
+                                          <tr style={{ background: 'var(--bg2)' }}>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>FECHA</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>TIPO V</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>Nº COMP.</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>GLOSA</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>Nº DOCTO.</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>TIPO DOCTO.</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>RUT</th>
+                                            <th className="ts" style={{ padding: '6px 12px' }}>NOMBRE</th>
+                                            <th className="ts" style={{ padding: '6px 12px', textAlign: 'right' }}>SALDO</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {g.movimientos.map(m => (
+                                            <tr key={m.id}>
+                                              <td className="ts tx">{m.fecha}</td>
+                                              <td className="ts tx">{m.tipo_v}</td>
+                                              <td className="ts tx">{m.numero_comprobante}</td>
+                                              <td className="ts">{m.glosa}</td>
+                                              <td className="ts tx">{m.numero_documento}</td>
+                                              <td className="ts tx">{m.tipo_documento}</td>
+                                              <td className="ts tx">{m.rut_proveedor}</td>
+                                              <td className="ts tx">{m.nombre_proveedor}</td>
+                                              <td className="mono ts" style={{ textAlign: 'right' }}>{clp(m.saldo)}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                              </Fragment>
+                          );
+                        })}
+                        {listaAgrupada.length > 0 && (
+                          <tr style={{ background: 'var(--bg3)', fontWeight: 800 }}>
+                            <td colSpan="3" style={{ textAlign: 'right', paddingTop: 16, paddingBottom: 16 }}>Total general</td>
+                            <td className="mono" style={{ textAlign: 'right', paddingTop: 16, paddingBottom: 16, color: totalGral < 0 ? 'var(--red)' : 'var(--text)' }}>{clp(totalGral)}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
+          {subTabCompras === 'manual' && (
+            <>
+              <form onSubmit={addCompra} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, marginBottom: 14 }}>
             <div className="compra-form-grid">
               <div className="form-group compra-field-descripcion" style={{ margin: 0 }}>
                 <label>Descripción *</label>
@@ -1258,6 +1370,8 @@ export default function ObraDetail() {
               </div>
             </div>
           )}
+          </>
+        )}
         </div>
       )}
 
