@@ -286,7 +286,7 @@ export default function Obras() {
                 {[
                   ['Presupuesto', clp(o.totalPres)],
                   ['Cobrado', clp(o.totalCobrado), 'var(--green)'],
-                  ['Gasto real', clp(o.totalCompras)],
+                  ['Gasto real', clp(o.totalCompras), 'var(--red)'],
                   ['Resultado', clp(dif), dif >= 0 ? 'var(--green)' : 'var(--red)'],
                   ['Responsable', o.responsable || '-'],
                   ['Término est.', o.fecha_fin || '-'],
