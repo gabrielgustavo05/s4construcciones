@@ -87,7 +87,7 @@ export default function ObraDetail() {
   const [newEstadoPago, setNewEstadoPago] = useState({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
   const [subTabCompras, setSubTabCompras] = useState('contabilidad');
   const [expandedCuentas, setExpandedCuentas] = useState({});
-  const [newCuenta, setNewCuenta] = useState({ numero: '', descripcion: '' });
+  const [bulkCuentasText, setBulkCuentasText] = useState('');
   const [editingCuentaId, setEditingCuentaId] = useState(null);
   const [editCuentaForm, setEditCuentaForm] = useState({ numero: '', descripcion: '' });
   const [showAddGrupo, setShowAddGrupo] = useState(false);
@@ -614,10 +614,23 @@ export default function ObraDetail() {
 
   const addCuentaObra = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('cuentas_obra').insert([{ ...newCuenta, obra_id: id }]);
-    if (error) alert('Error creando grupo: ' + error.message);
+    if (!bulkCuentasText.trim()) return;
+
+    const lines = bulkCuentasText.split('\n').filter(l => l.trim() !== '');
+    const cuentasToInsert = lines.map(line => {
+      const parts = line.trim().split(/\s+/);
+      const numero = parts[0];
+      const descripcion = parts.slice(1).join(' ') || 'Sin descripción';
+      return { obra_id: id, numero, descripcion };
+    });
+
+    if (cuentasToInsert.length === 0) return;
+
+    // Use upsert to avoid duplicates if they paste the same number twice
+    const { error } = await supabase.from('cuentas_obra').upsert(cuentasToInsert, { onConflict: 'obra_id, numero' });
+    if (error) alert('Error creando grupos: ' + error.message);
     else {
-      setNewCuenta({ numero: '', descripcion: '' });
+      setBulkCuentasText('');
       setShowAddGrupo(false);
       fetchTab(3);
     }
@@ -1278,11 +1291,19 @@ export default function ObraDetail() {
                 </div>
 
                 {showAddGrupo && (
-                  <form onSubmit={addCuentaObra} style={{ display: 'flex', gap: 10, marginBottom: 14, background: 'var(--bg2)', padding: 14, borderRadius: 8, border: '1px solid var(--border)' }}>
-                    <input required placeholder="Número (ej: 3203003)" value={newCuenta.numero} onChange={e => setNewCuenta({...newCuenta, numero: e.target.value})} style={{ width: 180 }} />
-                    <input required placeholder="Descripción (ej: Materiales e Insumos)" value={newCuenta.descripcion} onChange={e => setNewCuenta({...newCuenta, descripcion: e.target.value})} style={{ flex: 1 }} />
-                    <button type="submit" className="btn btn-a">Guardar</button>
-                    <button type="button" className="btn btn-d" onClick={() => setShowAddGrupo(false)}>Cancelar</button>
+                  <form onSubmit={addCuentaObra} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14, background: 'var(--bg2)', padding: 14, borderRadius: 8, border: '1px solid var(--border)' }}>
+                    <div className="ts tx">Pega aquí una o varias celdas desde Excel (Ej: "3202001 Honorarios"). Se separará automáticamente el número de la descripción.</div>
+                    <textarea 
+                      required 
+                      placeholder="3202001 Honorarios&#10;3203001 Costo Directos Obras Civiles" 
+                      value={bulkCuentasText} 
+                      onChange={e => setBulkCuentasText(e.target.value)} 
+                      style={{ height: 100, padding: 10, fontFamily: 'monospace', fontSize: 12, borderRadius: 4, border: '1px solid var(--border)' }} 
+                    />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button type="submit" className="btn btn-a">Crear Grupos</button>
+                      <button type="button" className="btn btn-d" onClick={() => { setShowAddGrupo(false); setBulkCuentasText(''); }}>Cancelar</button>
+                    </div>
                   </form>
                 )}
 
