@@ -197,7 +197,7 @@ export default function ObraDetail() {
       const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad, precio_unitario').eq('obra_id', id).order('created_at', { ascending: true });
       setPresupuestoItems(items || []);
 
-      const { data: cuentas } = await supabase.from('cuentas_obra').select('*, movimientos_contables(*)').eq('obra_id', id).order('cuenta', { ascending: true });
+      const { data: cuentas } = await supabase.from('cuentas_obra').select('*, movimientos_contables(*)').eq('obra_id', id).order('numero', { ascending: true });
       setData(d => ({ ...d, cuentas_obra: cuentas || [] }));
     }
 
