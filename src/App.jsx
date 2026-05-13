@@ -18,7 +18,6 @@ const Alertas       = lazy(() => import('./pages/Alertas'));
 const Personal      = lazy(() => import('./pages/Personal'));
 const Logistica     = lazy(() => import('./pages/Logistica'));
 const Licitaciones  = lazy(() => import('./pages/Licitaciones'));
-const PegarContabilidad = lazy(() => import('./pages/PegarContabilidad'));
 
 // Spinner compartido mientras carga cada módulo
 const PageLoader = () => (
@@ -70,7 +69,6 @@ export default function App() {
               <Route path="personal"     element={<Personal />} />
               <Route path="logistica"    element={<Logistica />} />
               <Route path="licitaciones" element={<Licitaciones />} />
-              <Route path="pegar-contabilidad" element={<PegarContabilidad />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

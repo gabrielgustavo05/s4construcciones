@@ -1,39 +1,22 @@
 -- ============================================================
--- MIGRACIÓN — Módulo Gastos Contabilidad (Vía Pegado)
+-- MIGRACIÓN — Grupos y Movimientos Contables (Vía Pegado en Detalle)
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.current_user_role()
-RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT COALESCE((SELECT rol FROM public.perfiles WHERE id = auth.uid()), 'Usuario')
-$$;
-
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.current_user_role() IN ('Administrador', 'Gerencia')
-$$;
-
--- 1. COLUMNA centro_costo EN OBRAS
-ALTER TABLE obras ADD COLUMN IF NOT EXISTS centro_costo TEXT;
-CREATE INDEX IF NOT EXISTS idx_obras_centro_costo ON obras(centro_costo);
-
--- 2. TABLA aliases_centros_costo
-CREATE TABLE IF NOT EXISTS aliases_centros_costo (
+-- 1. TABLA cuentas_obra (Los "Grupos")
+CREATE TABLE IF NOT EXISTS cuentas_obra (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   obra_id UUID NOT NULL REFERENCES obras(id) ON DELETE CASCADE,
-  centro_costo_contabilidad TEXT NOT NULL,
-  activo BOOLEAN DEFAULT true,
+  clasificacion TEXT DEFAULT 'Gastos',
+  cuenta TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT uq_alias_cc UNIQUE (centro_costo_contabilidad)
+  CONSTRAINT uq_cuenta_obra UNIQUE (obra_id, cuenta)
 );
 
--- 3. TABLA movimientos_contables
-CREATE TABLE IF NOT EXISTS movimientos_contables (
+-- 2. TABLA movimientos_contables (El "Detalle Pegado")
+DROP TABLE IF EXISTS movimientos_contables CASCADE;
+CREATE TABLE movimientos_contables (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  obra_id UUID REFERENCES obras(id) ON DELETE SET NULL,
-  centro_costo TEXT,
-  clasificacion TEXT,
-  cuenta TEXT,
+  cuenta_obra_id UUID NOT NULL REFERENCES cuentas_obra(id) ON DELETE CASCADE,
   fecha DATE,
   tipo_v TEXT,
   numero_comprobante TEXT,
@@ -49,29 +32,26 @@ CREATE TABLE IF NOT EXISTS movimientos_contables (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_mc_obra_id ON movimientos_contables(obra_id);
-CREATE INDEX IF NOT EXISTS idx_mc_cc ON movimientos_contables(centro_costo);
-CREATE INDEX IF NOT EXISTS idx_mc_hash ON movimientos_contables(hash_unico);
+CREATE INDEX idx_mc_cuenta_obra ON movimientos_contables(cuenta_obra_id);
+CREATE INDEX idx_mc_hash ON movimientos_contables(hash_unico);
 
--- 4. RLS TOTALMENTE RELAJADO (Cualquier usuario logueado puede pegar datos)
+-- 3. RLS RELAJADO (Cualquier usuario autenticado puede gestionar)
+ALTER TABLE cuentas_obra ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "co_select" ON cuentas_obra;
+DROP POLICY IF EXISTS "co_insert" ON cuentas_obra;
+DROP POLICY IF EXISTS "co_update" ON cuentas_obra;
+DROP POLICY IF EXISTS "co_delete" ON cuentas_obra;
+CREATE POLICY "co_select" ON cuentas_obra FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "co_insert" ON cuentas_obra FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "co_update" ON cuentas_obra FOR UPDATE USING (auth.uid() IS NOT NULL);
+CREATE POLICY "co_delete" ON cuentas_obra FOR DELETE USING (auth.uid() IS NOT NULL);
+
 ALTER TABLE movimientos_contables ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "mc_select" ON movimientos_contables;
 DROP POLICY IF EXISTS "mc_insert" ON movimientos_contables;
 DROP POLICY IF EXISTS "mc_update" ON movimientos_contables;
 DROP POLICY IF EXISTS "mc_delete" ON movimientos_contables;
-
 CREATE POLICY "mc_select" ON movimientos_contables FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "mc_insert" ON movimientos_contables FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "mc_update" ON movimientos_contables FOR UPDATE USING (auth.uid() IS NOT NULL);
 CREATE POLICY "mc_delete" ON movimientos_contables FOR DELETE USING (auth.uid() IS NOT NULL);
-
-ALTER TABLE aliases_centros_costo ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "acc_select" ON aliases_centros_costo;
-DROP POLICY IF EXISTS "acc_insert" ON aliases_centros_costo;
-DROP POLICY IF EXISTS "acc_update" ON aliases_centros_costo;
-DROP POLICY IF EXISTS "acc_delete" ON aliases_centros_costo;
-
-CREATE POLICY "acc_select" ON aliases_centros_costo FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "acc_insert" ON aliases_centros_costo FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-CREATE POLICY "acc_update" ON aliases_centros_costo FOR UPDATE USING (auth.uid() IS NOT NULL);
-CREATE POLICY "acc_delete" ON aliases_centros_costo FOR DELETE USING (auth.uid() IS NOT NULL);

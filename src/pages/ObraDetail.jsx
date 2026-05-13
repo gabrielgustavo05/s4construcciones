@@ -54,7 +54,7 @@ export default function ObraDetail() {
   const { id } = useParams(); const navigate = useNavigate();
   const [obra, setObra] = useState(null);
   const [tab, setTab] = useState(0);
-  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [], movimientos_contables: [] });
+  const [data, setData] = useState({ presupuesto: [], asistencia: [], compras: [], cotizaciones: [], subcontratos: [], hitos: [], estados_pago: [], compras_cotejo: [], cuentas_obra: [] });
   const [loading, setLoading] = useState(true);
   const [excelPreview, setExcelPreview] = useState(null);
   const [excelDebug, setExcelDebug] = useState(null);
@@ -87,8 +87,10 @@ export default function ObraDetail() {
   const [newEstadoPago, setNewEstadoPago] = useState({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
   const [subTabCompras, setSubTabCompras] = useState('contabilidad');
   const [expandedCuentas, setExpandedCuentas] = useState({});
+  const [newCuenta, setNewCuenta] = useState({ clasificacion: 'Gastos', cuenta: '' });
+  const [pasteText, setPasteText] = useState({}); // store paste text per account ID
 
-  const toggleCuenta = (cta) => setExpandedCuentas(p => ({ ...p, [cta]: !p[cta] }));
+  const toggleCuenta = (ctaId) => setExpandedCuentas(p => ({ ...p, [ctaId]: !p[ctaId] }));
   const fetchObra = useCallback(async () => {
     const { data: o } = await supabase.from('obras').select('*').eq('id', id).single();
     if (o) {
@@ -195,8 +197,8 @@ export default function ObraDetail() {
       const { data: items } = await supabase.from('presupuesto_items').select('id, codigo, descripcion, unidad, cantidad, precio_unitario').eq('obra_id', id).order('created_at', { ascending: true });
       setPresupuestoItems(items || []);
 
-      const { data: movs } = await supabase.from('movimientos_contables').select('*').eq('obra_id', id).order('fecha', { ascending: false });
-      setData(d => ({ ...d, movimientos_contables: movs || [] }));
+      const { data: cuentas } = await supabase.from('cuentas_obra').select('*, movimientos_contables(*)').eq('obra_id', id).order('cuenta', { ascending: true });
+      setData(d => ({ ...d, cuentas_obra: cuentas || [] }));
     }
 
     setLoading(false);
@@ -596,13 +598,61 @@ export default function ObraDetail() {
       if (dbError) throw dbError;
 
       setNewSolicitud({ titulo: '', urgencia: 'Normal' });
+      fetchTab(4); // recargar solicitudes
       setShowSolicitudModal(false);
-      fetchTab(4);
     } catch (err) {
-      alert('Error al subir solicitud: ' + err.message);
+      alert('Error subiendo archivo: ' + err.message);
     } finally {
       setUploading(false);
     }
+  };
+
+  const addCuentaObra = async (e) => {
+    e.preventDefault();
+    const { error } = await supabase.from('cuentas_obra').insert([{ obra_id: id, clasificacion: newCuenta.clasificacion, cuenta: newCuenta.cuenta }]);
+    if (error) return alert('Error al agregar grupo contable: ' + error.message);
+    setNewCuenta({ clasificacion: 'Gastos', cuenta: '' });
+    fetchTab(3);
+  };
+
+  const deleteCuentaObra = async (cuentaId) => {
+    if (!window.confirm('¿Eliminar este grupo y TODOS sus detalles pegados?')) return;
+    await supabase.from('cuentas_obra').delete().eq('id', cuentaId);
+    fetchTab(3);
+  };
+
+  const handlePasteCuentaDetail = async (cuentaId) => {
+    const text = pasteText[cuentaId];
+    if (!text || !text.trim()) return alert('Pega el texto de Excel en el cuadro.');
+    
+    // Parse using the previously written logic in contabilidad_paste.js
+    // We can just use parseTsvData but mapped strictly to the group.
+    import('../lib/contabilidad_paste').then(async ({ parseTsvData }) => {
+      // Create a dummy map since we force the ID
+      const res = parseTsvData(text, {}); 
+      if (res.error) return alert(res.error);
+      
+      const movsToInsert = res.movimientos.map(m => {
+        // override with forced id, no matter what C.C. said
+        const { obra_id, centro_costo, hash_unico, ...rest } = m;
+        // recalculate hash specifically for this group insertion?
+        // or just keep hash_unico but make it robust
+        return {
+          ...rest,
+          cuenta_obra_id: cuentaId,
+          hash_unico: hash_unico + '-' + cuentaId // ensure uniqueness across different pastes if needed
+        };
+      });
+
+      const { data, error } = await supabase.from('movimientos_contables').upsert(movsToInsert, { onConflict: 'hash_unico', ignoreDuplicates: true });
+      if (error) {
+        alert('Error guardando detalle: ' + error.message);
+      } else {
+        alert('Detalles pegados exitosamente.');
+        setPasteText(p => ({ ...p, [cuentaId]: '' }));
+        fetchTab(3);
+      }
+    });
   };
 
   const getHorasTranscurridas = (dateStr) => {
@@ -1186,22 +1236,20 @@ export default function ObraDetail() {
           </div>
 
           {subTabCompras === 'contabilidad' && (() => {
-            const agrupados = data.movimientos_contables.reduce((acc, mov) => {
-              const cta = mov.cuenta || 'Sin Cuenta';
-              if (!acc[cta]) acc[cta] = { cuenta: cta, clasificacion: mov.clasificacion || 'Gastos', movimientos: [], total: 0 };
-              acc[cta].movimientos.push(mov);
-              acc[cta].total += mov.saldo;
-              return acc;
-            }, {});
-            const listaAgrupada = Object.values(agrupados).sort((a,b) => a.cuenta.localeCompare(b.cuenta));
-            const totalGral = listaAgrupada.reduce((s, a) => s + a.total, 0);
+            const cuentas = data.cuentas_obra || [];
+            const totalGral = cuentas.reduce((sum, c) => sum + (c.movimientos_contables?.reduce((s, m) => s + m.saldo, 0) || 0), 0);
 
             return (
               <>
                 <div className="fb" style={{ marginBottom: 14 }}>
                   <h3 style={{ fontSize: 15, fontWeight: 800 }}>Resumen Contable (Desde Excel)</h3>
-                  <Link to="/pegar-contabilidad" className="btn btn-s btn-sm">📋 Pegar nuevos datos</Link>
                 </div>
+
+                <form onSubmit={addCuentaObra} style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <input required placeholder="Clasificación (ej: Gastos)" value={newCuenta.clasificacion} onChange={e => setNewCuenta({...newCuenta, clasificacion: e.target.value})} style={{ width: 180 }} />
+                  <input required placeholder="Nombre de la Cuenta (ej: 3203003 Materiales e Insumos)" value={newCuenta.cuenta} onChange={e => setNewCuenta({...newCuenta, cuenta: e.target.value})} style={{ flex: 1 }} />
+                  <button type="submit" className="btn btn-a">➕ Agregar Grupo</button>
+                </form>
 
                 <div className="card" style={{ padding: 0 }}>
                   <div className="tw">
@@ -1212,28 +1260,45 @@ export default function ObraDetail() {
                           <th style={{ width: 150 }}>Clasificación</th>
                           <th>Cuenta</th>
                           <th style={{ textAlign: 'right', width: 150 }}>Suma de SALDO</th>
+                          <th style={{ width: 40 }}></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {listaAgrupada.length === 0 ? (
-                          <tr><td colSpan="4" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay movimientos asignados a esta obra.</td></tr>
-                        ) : listaAgrupada.map(g => {
-                          const isExp = expandedCuentas[g.cuenta];
+                        {cuentas.length === 0 ? (
+                          <tr><td colSpan="5" style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No hay grupos contables. Agrega uno arriba.</td></tr>
+                        ) : cuentas.map(g => {
+                          const isExp = expandedCuentas[g.id];
+                          const totalGrupo = g.movimientos_contables?.reduce((s, m) => s + m.saldo, 0) || 0;
                           return (
-                              <Fragment key={g.cuenta}>
-                                <tr onClick={() => toggleCuenta(g.cuenta)} style={{ cursor: 'pointer', background: 'var(--bg2)' }}>
-                                <td style={{ textAlign: 'center' }}>{isExp ? '▾' : '▸'}</td>
-                                <td>{g.clasificacion}</td>
-                                <td><strong>{g.cuenta}</strong></td>
-                                <td className="mono" style={{ textAlign: 'right', color: g.total < 0 ? 'var(--red)' : 'var(--text)', fontWeight: 800 }}>
-                                  {clp(g.total)}
+                              <Fragment key={g.id}>
+                                <tr style={{ background: 'var(--bg2)' }}>
+                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer', textAlign: 'center' }}>{isExp ? '▾' : '▸'}</td>
+                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer' }}>{g.clasificacion}</td>
+                                <td onClick={() => toggleCuenta(g.id)} style={{ cursor: 'pointer' }}><strong>{g.cuenta}</strong></td>
+                                <td className="mono" style={{ textAlign: 'right', color: totalGrupo < 0 ? 'var(--red)' : 'var(--text)', fontWeight: 800 }}>
+                                  {clp(totalGrupo)}
+                                </td>
+                                <td>
+                                  <button className="btn btn-d btn-sm" onClick={() => deleteCuentaObra(g.id)} title="Eliminar grupo">✕</button>
                                 </td>
                               </tr>
                               {isExp && (
                                 <tr>
-                                  <td colSpan="4" style={{ padding: 0, border: 0 }}>
-                                    <div style={{ background: 'var(--bg3)', padding: '0 10px 10px 40px' }}>
-                                      <table style={{ background: 'var(--bg)', border: '1px solid var(--border)', margin: '8px 0', borderRadius: 6, overflow: 'hidden' }}>
+                                  <td colSpan="5" style={{ padding: 0, border: 0 }}>
+                                    <div style={{ background: 'var(--bg3)', padding: '14px 14px 14px 40px' }}>
+                                      
+                                      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                                        <textarea 
+                                          placeholder="Pega aquí (Ctrl+V) las filas copiadas desde Excel con el detalle de este grupo..."
+                                          style={{ flex: 1, height: 40, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', borderRadius: 4, border: '1px solid var(--border2)' }}
+                                          value={pasteText[g.id] || ''}
+                                          onChange={e => setPasteText({...pasteText, [g.id]: e.target.value})}
+                                        />
+                                        <button className="btn btn-a" onClick={() => handlePasteCuentaDetail(g.id)} disabled={!pasteText[g.id]}>Pegar Detalle</button>
+                                      </div>
+
+                                      {g.movimientos_contables && g.movimientos_contables.length > 0 ? (
+                                      <table style={{ background: 'var(--bg)', border: '1px solid var(--border)', margin: '0', borderRadius: 6, overflow: 'hidden' }}>
                                         <thead>
                                           <tr style={{ background: 'var(--bg2)' }}>
                                             <th className="ts" style={{ padding: '6px 12px' }}>FECHA</th>
@@ -1248,7 +1313,7 @@ export default function ObraDetail() {
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          {g.movimientos.map(m => (
+                                          {g.movimientos_contables.map(m => (
                                             <tr key={m.id}>
                                               <td className="ts tx">{m.fecha}</td>
                                               <td className="ts tx">{m.tipo_v}</td>
@@ -1263,6 +1328,11 @@ export default function ObraDetail() {
                                           ))}
                                         </tbody>
                                       </table>
+                                      ) : (
+                                        <div style={{ padding: 12, textAlign: 'center', color: 'var(--text3)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4 }}>
+                                          No hay detalles pegados para este grupo aún.
+                                        </div>
+                                      )}
                                     </div>
                                   </td>
                                 </tr>
@@ -1270,10 +1340,11 @@ export default function ObraDetail() {
                               </Fragment>
                           );
                         })}
-                        {listaAgrupada.length > 0 && (
+                        {cuentas.length > 0 && (
                           <tr style={{ background: 'var(--bg3)', fontWeight: 800 }}>
                             <td colSpan="3" style={{ textAlign: 'right', paddingTop: 16, paddingBottom: 16 }}>Total general</td>
                             <td className="mono" style={{ textAlign: 'right', paddingTop: 16, paddingBottom: 16, color: totalGral < 0 ? 'var(--red)' : 'var(--text)' }}>{clp(totalGral)}</td>
+                            <td></td>
                           </tr>
                         )}
                       </tbody>
