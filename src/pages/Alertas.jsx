@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { clp, calcPresupuesto, calcCompras } from '../lib/helpers';
+import { clp, calcPresupuesto, calcCostoReal } from '../lib/helpers';
 import { useNavigate } from 'react-router-dom';
 
 export default function Alertas() {
@@ -11,7 +11,7 @@ export default function Alertas() {
   const fetchAlertas = useCallback(async () => {
     const { data: obras } = await supabase
       .from('obras')
-      .select(`id, nombre, estado, presupuesto_items(id, descripcion, cantidad, precio_unitario, presupuesto_materiales(descripcion, cantidad)), compras(cantidad, precio_unitario, presupuesto_item_id, descripcion), cotizaciones(estado), estados_pago(estado, monto_bruto, retencion_pct, fecha_pago_estimada), hitos(estado, nombre, fecha_fin_plan)`)
+      .select(`id, nombre, estado, presupuesto_items(id, descripcion, cantidad, precio_unitario, presupuesto_materiales(descripcion, cantidad)), compras(cantidad, precio_unitario, presupuesto_item_id, descripcion), cuentas_obra(movimientos_contables(saldo)), asistencia(total_pago), subcontratos(monto_contrato), cotizaciones(estado), estados_pago(estado, monto_bruto, retencion_pct, fecha_pago_estimada), hitos(estado, nombre, fecha_fin_plan)`)
       .neq('estado', 'Finalizada');
 
     if (!obras) { setLoading(false); return; }
@@ -19,7 +19,12 @@ export default function Alertas() {
     const list = [];
     for (const o of obras) {
       const { neto: totalPres } = calcPresupuesto(o.presupuesto_items || []);
-      const totalComp = calcCompras(o.compras || []);
+      const totalComp = calcCostoReal({
+        compras: o.compras || [],
+        cuentas_obra: o.cuentas_obra || [],
+        asistencia: o.asistencia || [],
+        subcontratos: o.subcontratos || []
+      }).total;
       const pctGasto = totalPres > 0 ? (totalComp / totalPres) * 100 : 0;
 
       // Alerta de sobrecosto

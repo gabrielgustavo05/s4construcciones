@@ -820,6 +820,7 @@ export default function ObraDetail() {
   const { neto: totalPres, subtotal, gastosGenerales, utilidad, neto, iva } = calcPresupuesto(data.presupuesto, obra.gastos_generales_pct, obra.utilidad_pct, totalEspejo);
   const totalComp = calcCostoReal({
     compras: data.compras,
+    cuentas_obra: data.cuentas_obra,
     asistencia: data.asistencia,
     subcontratos: data.subcontratos,
     gastoEspejo: data.gasto_espejo || 0

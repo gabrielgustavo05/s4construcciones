@@ -48,6 +48,7 @@ export default function Dashboard() {
           cotizaciones ( monto, estado ),
           subcontratos ( monto_contrato ),
           estados_pago ( monto_bruto, retencion_pct, estado ),
+          cuentas_obra ( movimientos_contables ( saldo ) ),
           obra_padre_id, departamento
         `)
         .order('created_at', { ascending: false });
@@ -68,11 +69,14 @@ export default function Dashboard() {
 
         const gastoPrincipal = calcCostoReal({
           compras: main.compras || [],
+          cuentas_obra: main.cuentas_obra || [],
           asistencia: main.asistencia || [],
           subcontratos: main.subcontratos || [],
         }).total;
+
         const gastoEspejo = espejo ? calcCostoReal({
           compras: espejo.compras || [],
+          cuentas_obra: espejo.cuentas_obra || [],
           asistencia: espejo.asistencia || [],
           subcontratos: espejo.subcontratos || [],
         }).total : 0;

@@ -42,8 +42,13 @@ export const calcCompras = (compras) =>
 export const calcAsistencia = (asistencias) =>
   asistencias.reduce((acc, a) => acc + parseNum(a.total_pago), 0);
 
-export const calcCostoReal = ({ compras = [], asistencia = [], subcontratos = [], gastoEspejo = 0 } = {}) => {
-  const totalCompras = calcCompras(compras);
+export const calcCostoReal = ({ compras = [], cuentas_obra = [], asistencia = [], subcontratos = [], gastoEspejo = 0 } = {}) => {
+  const totalComprasManuales = calcCompras(compras);
+  const totalCuentasObra = cuentas_obra.reduce((acc, cta) => acc + (cta.movimientos_contables || []).reduce((sum, m) => sum + parseNum(m.saldo), 0), 0);
+  
+  // Si hay cuentas de obra registradas, usamos su saldo como gasto de materiales/generales, sino fallback a compras manuales
+  const totalCompras = cuentas_obra.length > 0 ? totalCuentasObra : totalComprasManuales;
+  
   const totalManoObra = calcAsistencia(asistencia);
   const totalSubcontratos = subcontratos.reduce((acc, s) => acc + parseNum(s.monto_contrato), 0);
   const total = totalCompras + totalManoObra + totalSubcontratos + parseNum(gastoEspejo);
