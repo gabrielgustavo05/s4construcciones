@@ -322,6 +322,8 @@ export const parseExcel = async (file) => {
         // Busca la tripleta de columnas numéricas donde se cumple la ecuación
         // para confirmar o reemplazar las columnas detectadas
         // ────────────────────────────────────────────────────────────────────
+        let crossValidated = false;
+
         if (sampleRows.length >= 3) {
           const numCols = Math.max(...sampleRows.map((r) => r.length));
 
@@ -362,6 +364,7 @@ export const parseExcel = async (file) => {
           }
 
           if (bestTriple) {
+            crossValidated = bestMatchRate > 0.85;
             // Solo reemplazar si la cross-validación encontró algo más sólido
             if (colMap.qty === -1 || colMap.price === -1 || colMap.total === -1) {
               if (colMap.qty === -1) colMap.qty = bestTriple.qty;
@@ -445,7 +448,7 @@ export const parseExcel = async (file) => {
             headerRow,
             colMap,
             colNames,
-            crossValidated: !!(bestTriple && bestMatchRate > 0.85),
+            crossValidated,
             priceFromFallback: colMap.price === -1 && colMap.total !== -1,
           },
         });

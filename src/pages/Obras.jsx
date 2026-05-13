@@ -42,7 +42,8 @@ export default function Obras() {
           compras ( cantidad, precio_unitario ),
           cuentas_obra ( movimientos_contables ( saldo ) ),
           asistencia ( total_pago ),
-          subcontratos ( monto_contrato )
+          subcontratos ( monto_contrato ),
+          estados_pago ( monto_bruto, retencion_pct, estado )
         `)
         .eq('departamento', 'Construcción')
         .order('created_at', { ascending: false }),
@@ -55,6 +56,13 @@ export default function Obras() {
         ...o,
         totalPres: calcPresupuesto(o.presupuesto_items || [], o.gastos_generales_pct, o.utilidad_pct).neto,
         totalCompras: calcCostoReal({ compras: o.compras || [], cuentas_obra: o.cuentas_obra || [], asistencia: o.asistencia || [], subcontratos: o.subcontratos || [] }).total,
+        totalCobrado: (o.estados_pago || [])
+          .filter((ep) => ep.estado === 'Pagado')
+          .reduce((sum, ep) => {
+            const montoBruto = parseNum(ep.monto_bruto);
+            const retencion = Math.round(montoBruto * parseNum(ep.retencion_pct) / 100);
+            return sum + montoBruto - retencion;
+          }, 0),
         hasMirror: mirroredIds.has(o.id)
       })));
     }
@@ -277,6 +285,7 @@ export default function Obras() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 10 }}>
                 {[
                   ['Presupuesto', clp(o.totalPres)],
+                  ['Cobrado', clp(o.totalCobrado), 'var(--green)'],
                   ['Gasto real', clp(o.totalCompras)],
                   ['Resultado', clp(dif), dif >= 0 ? 'var(--green)' : 'var(--red)'],
                   ['Responsable', o.responsable || '-'],
