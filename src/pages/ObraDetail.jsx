@@ -86,6 +86,7 @@ export default function ObraDetail() {
   const [newSubcontrato, setNewSubcontrato] = useState({ empresa: '', rut: '', especialidad: '', monto_contrato: '', retencion_pct: 5, avance: 0, estado: 'Activo' });
   const [newHito, setNewHito] = useState({ nombre: '', fecha_inicio_plan: today(), fecha_fin_plan: today(), estado: 'Pendiente', avance: 0 });
   const [newEstadoPago, setNewEstadoPago] = useState({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+  const [showEstadoForm, setShowEstadoForm] = useState(false);
   const [subTabCompras, setSubTabCompras] = useState('contabilidad');
   const [expandedCuentas, setExpandedCuentas] = useState({});
   const [bulkCuentasText, setBulkCuentasText] = useState('');
@@ -753,6 +754,7 @@ export default function ObraDetail() {
     const { error } = await supabase.from('estados_pago').insert([{ ...newEstadoPago, obra_id: id, monto_bruto: parseNum(newEstadoPago.monto_bruto), retencion_pct: parseNum(newEstadoPago.retencion_pct) }]);
     if (error) return alert('Error al crear estado de pago: ' + error.message);
     setNewEstadoPago({ numero: '', descripcion: '', monto_bruto: '', retencion_pct: 5, fecha_emision: today(), estado: 'Emitido' });
+    setShowEstadoForm(false);
     fetchTab(8);
   };
 
@@ -1732,21 +1734,32 @@ export default function ObraDetail() {
       {tab === 8 && (
         <div className="tab-panel active">
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="card-title">💰 Emitir Estado de Pago</div>
-            <form onSubmit={addEstadoPago} className="form-grid" style={{ alignItems: 'flex-end' }}>
-              <div className="form-group"><label>EPO N°</label><input required value={newEstadoPago.numero} onChange={e => setNewEstadoPago({ ...newEstadoPago, numero: e.target.value })} /></div>
-              <div className="form-group"><label>Descripción</label><input required value={newEstadoPago.descripcion} onChange={e => setNewEstadoPago({ ...newEstadoPago, descripcion: e.target.value })} /></div>
-              <div className="form-group"><label>Monto Bruto ($)</label><input type="number" required value={newEstadoPago.monto_bruto} onChange={e => setNewEstadoPago({ ...newEstadoPago, monto_bruto: e.target.value })} /></div>
-              <div className="form-group"><label>Retención (%)</label><input type="number" value={newEstadoPago.retencion_pct} onChange={e => setNewEstadoPago({ ...newEstadoPago, retencion_pct: e.target.value })} /></div>
-              <div className="form-group">
-                <label>Estado</label>
-                <select value={newEstadoPago.estado} onChange={e => setNewEstadoPago({ ...newEstadoPago, estado: e.target.value })}>
-                  {ESTADOS_EPO.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <button className="btn btn-a">+</button>
-            </form>
+            <div className="fb" style={{ gap: 12 }}>
+              <div className="card-title">💰 Emitir Estado de Pago</div>
+              {!showEstadoForm ? (
+                <button className="btn btn-a btn-sm" onClick={() => setShowEstadoForm(true)}>Agregar Estado de pago</button>
+              ) : (
+                <button className="btn btn-s btn-sm" onClick={() => setShowEstadoForm(false)}>Ocultar formulario</button>
+              )}
+            </div>
           </div>
+          {showEstadoForm && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <form onSubmit={addEstadoPago} className="form-grid" style={{ alignItems: 'flex-end' }}>
+                <div className="form-group"><label>EPO N°</label><input required value={newEstadoPago.numero} onChange={e => setNewEstadoPago({ ...newEstadoPago, numero: e.target.value })} /></div>
+                <div className="form-group"><label>Descripción</label><input required value={newEstadoPago.descripcion} onChange={e => setNewEstadoPago({ ...newEstadoPago, descripcion: e.target.value })} /></div>
+                <div className="form-group"><label>Monto Bruto ($)</label><input type="number" required value={newEstadoPago.monto_bruto} onChange={e => setNewEstadoPago({ ...newEstadoPago, monto_bruto: e.target.value })} /></div>
+                <div className="form-group"><label>Retención (%)</label><input type="number" value={newEstadoPago.retencion_pct} onChange={e => setNewEstadoPago({ ...newEstadoPago, retencion_pct: e.target.value })} /></div>
+                <div className="form-group">
+                  <label>Estado</label>
+                  <select value={newEstadoPago.estado} onChange={e => setNewEstadoPago({ ...newEstadoPago, estado: e.target.value })}>
+                    {ESTADOS_EPO.map((s) => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <button className="btn btn-a">+</button>
+              </form>
+            </div>
+          )}
           <div className="card" style={{ padding: '18px 18px 14px', marginBottom: 14 }}>
             <div className="card-title">📌 Informe financiero de obra</div>
             <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 12 }}>
