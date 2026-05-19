@@ -161,6 +161,16 @@ export default function ObraDetail() {
       return;
     }
 
+    if (tabIndex === 8) {
+      const [{ data: epsData }, { data: cuentas }] = await Promise.all([
+        supabase.from('estados_pago').select('*').eq('obra_id', id).order('created_at', { ascending: false }),
+        supabase.from('cuentas_obra').select('*, movimientos_contables(*)').eq('obra_id', id).order('numero', { ascending: true }),
+      ]);
+      setData(d => ({ ...d, estados_pago: epsData || [], cuentas_obra: cuentas || [] }));
+      setLoading(false);
+      return;
+    }
+
     const table = tables[tabIndex - 1];
 
     let query = supabase.from(table).select('*').eq('obra_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
@@ -863,6 +873,38 @@ export default function ObraDetail() {
     gastoEspejo: data.gasto_espejo || 0
   }).total;
   const totalSoloCompras = calcCompras(data.compras);
+  const groupedComprasByNombre = Object.values(
+    data.compras.reduce((acc, c) => {
+      const name = (c.descripcion || 'Sin descripción').trim();
+      if (!acc[name]) acc[name] = { desc: name, und: c.unidad || '-', cantidad: 0, total: 0, proveedor: c.proveedor || '-', veces: 0 };
+      acc[name].cantidad += parseNum(c.cantidad);
+      acc[name].total += parseNum(c.cantidad) * parseNum(c.precio_unitario);
+      acc[name].veces += 1;
+      if (!acc[name].und && c.unidad) acc[name].und = c.unidad;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.total - a.total);
+  const topCompras = groupedComprasByNombre.slice(0, 5);
+
+  const groupedCuentasResumen = (data.cuentas_obra || []).map((cta) => ({
+    numero: cta.numero || 'Sin cuenta',
+    descripcion: cta.descripcion || 'Sin descripción',
+    total: (cta.movimientos_contables || []).reduce((sum, m) => sum + parseNum(m.saldo), 0),
+    movimientos: (cta.movimientos_contables || []).length,
+  }));
+  const topCuentas = groupedCuentasResumen.slice().sort((a, b) => Math.abs(b.total) - Math.abs(a.total)).slice(0, 5);
+  const totalCuentasSaldo = groupedCuentasResumen.reduce((sum, c) => sum + c.total, 0);
+
+  const totalEpoBruto = data.estados_pago.reduce((sum, ep) => sum + parseNum(ep.monto_bruto), 0);
+  const totalEpoRetencion = data.estados_pago.reduce((sum, ep) => sum + Math.round(parseNum(ep.monto_bruto) * parseNum(ep.retencion_pct) / 100), 0);
+  const totalEpoNeto = totalEpoBruto - totalEpoRetencion;
+  const totalEpoCobrado = data.estados_pago
+    .filter((ep) => ep.estado === 'Pagado')
+    .reduce((sum, ep) => sum + parseNum(ep.monto_bruto) - Math.round(parseNum(ep.monto_bruto) * parseNum(ep.retencion_pct) / 100), 0);
+  const totalEpoPendiente = data.estados_pago
+    .filter((ep) => ep.estado !== 'Pagado')
+    .reduce((sum, ep) => sum + parseNum(ep.monto_bruto), 0);
+  const saldoPresupuestario = totalPres - totalComp;
   const presupuestoTableWidth = PRESUPUESTO_COLUMNS.reduce((sum, col) => sum + (presupuestoColWidths[col.key] || col.width), 0);
 
   return (
@@ -1705,6 +1747,78 @@ export default function ObraDetail() {
               <button className="btn btn-a">+</button>
             </form>
           </div>
+          <div className="card" style={{ padding: '18px 18px 14px', marginBottom: 14 }}>
+            <div className="card-title">📌 Informe financiero de obra</div>
+            <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 12 }}>
+              <div className="stat-card">
+                <span className="stat-label">Total presupuesto</span>
+                <span className="stat-value">{clp(totalPres)}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Gasto real</span>
+                <span className="stat-value">{clp(totalComp)}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Saldo presupuestario</span>
+                <span className="stat-value" style={{ color: saldoPresupuestario >= 0 ? 'var(--green)' : 'var(--red)' }}>{clp(saldoPresupuestario)}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">EPO neto total</span>
+                <span className="stat-value">{clp(totalEpoNeto)}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Cobrado EPO</span>
+                <span className="stat-value">{clp(totalEpoCobrado)}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginTop: 16 }}>
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+                <div style={{ marginBottom: 10, fontWeight: 700 }}>Top compras por nombre</div>
+                {topCompras.length === 0 ? (
+                  <div style={{ padding: 12, color: 'var(--text3)' }}>No hay compras registradas.</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr><th style={{ textAlign: 'left', padding: 6 }}>Nombre</th><th style={{ textAlign: 'right', padding: 6 }}>Cant.</th><th style={{ textAlign: 'right', padding: 6 }}>Total</th></tr>
+                    </thead>
+                    <tbody>
+                      {topCompras.map((item) => (
+                        <tr key={item.desc}>
+                          <td className="ts">{item.desc}</td>
+                          <td className="mono" style={{ textAlign: 'right' }}>{item.cantidad}</td>
+                          <td className="mono" style={{ textAlign: 'right' }}>{clp(item.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+                <div style={{ marginBottom: 10, fontWeight: 700 }}>Top cuentas contables</div>
+                {topCuentas.length === 0 ? (
+                  <div style={{ padding: 12, color: 'var(--text3)' }}>No hay registros contables.</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr><th style={{ textAlign: 'left', padding: 6 }}>Cuenta</th><th style={{ textAlign: 'right', padding: 6 }}>Movs</th><th style={{ textAlign: 'right', padding: 6 }}>Saldo</th></tr>
+                    </thead>
+                    <tbody>
+                      {topCuentas.map((cta) => (
+                        <tr key={cta.numero}>
+                          <td className="ts">{cta.numero} — {cta.descripcion}</td>
+                          <td className="mono" style={{ textAlign: 'right' }}>{cta.movimientos}</td>
+                          <td className="mono" style={{ textAlign: 'right' }}>{clp(cta.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="card" style={{ padding: 0 }}>
             <div className="tw">
               <table>
